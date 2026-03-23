@@ -75,7 +75,7 @@
             border-radius: var(--radius-md);
             transition: all var(--transition-normal);
             overflow: hidden;
-            cursor: default;
+            cursor: pointer;
         }
         .month-card:hover {
             border-color: var(--border-accent);
@@ -162,10 +162,10 @@
             background: linear-gradient(90deg, #5b8dee, #4a7de0);
         }
 
-        /* 导航标签 */
         .nav-tabs {
             display: flex;
             gap: 4px;
+            align-items: center;
         }
         .nav-tab {
             padding: 6px 16px;
@@ -176,6 +176,9 @@
             text-decoration: none;
             transition: all var(--transition-fast);
             border: 1px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
         .nav-tab:hover {
             color: var(--text-primary);
@@ -223,6 +226,177 @@
             animation: pulse 1.5s infinite;
             margin-bottom: 12px;
         }
+
+        /* 每日详情视图 */
+        .month-detail-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            gap: 16px;
+        }
+        .month-detail-header .btn {
+            width: fit-content;
+            white-space: nowrap;
+        }
+        .month-detail-header h2 {
+            font-size: 1.5rem;
+            margin: 0;
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+        .daily-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 16px;
+        }
+        .daily-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            transition: all var(--transition-normal);
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+        }
+        .daily-card:hover {
+            border-color: var(--border-accent);
+            box-shadow: var(--shadow-sm);
+        }
+        .daily-date {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .daily-date .badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(91,141,238,0.1);
+            color: var(--accent-blue);
+            font-weight: normal;
+        }
+        .daily-hours {
+            font-size: 1.4rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent-green);
+            margin: 4px 0;
+        }
+        .daily-time {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            flex-grow: 1;
+        }
+        .daily-subject {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border-color);
+            padding-top: 10px;
+            margin-top: auto;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 每日详情模态框 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all var(--transition-normal);
+        }
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            width: 90%;
+            max-width: 600px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            transform: scale(0.95) translateY(20px);
+            transition: all var(--transition-normal);
+            box-shadow: var(--shadow-lg);
+        }
+        .modal-overlay.show .modal-content {
+            transform: scale(1) translateY(0);
+        }
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        }
+        .modal-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+            transition: color var(--transition-fast);
+        }
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        .modal-body pre, .modal-body code {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+        .modal-body pre {
+            padding: 12px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .modal-meta {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--accent-green);
+        }
     </style>
 </head>
 <body>
@@ -252,13 +426,46 @@
         <div id="dashboardContent">
             <div class="loading-dashboard">
                 <div class="spinner">⏳</div>
-                <p>正在加载数据...</p>
+                <p>正在加载大盘数据...</p>
+            </div>
+        </div>
+
+        <div id="monthDetailView" style="display: none;">
+            <div class="month-detail-header">
+                <button class="btn btn-outline" onclick="closeMonthDetail()">
+                    <span class="btn-icon">←</span> 返回大盘
+                </button>
+                <h2 id="monthDetailTitle">加载中...</h2>
+            </div>
+            <div id="monthDetailContent">
+                <div class="loading-dashboard">
+                    <div class="spinner">⏳</div>
+                    <p>正在加载每日详情...</p>
+                </div>
             </div>
         </div>
     </main>
 
+    <!-- 每日详情模态框 -->
+    <div id="dailyDetailModal" class="modal-overlay" onclick="closeDailyModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">某日 工作记录</h3>
+                <button class="modal-close" onclick="closeDailyModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-meta" id="modalMeta">
+                    <span>⏳ 8.5h</span>
+                    <span>🕙 10:00 - 19:30</span>
+                </div>
+                <div id="modalText"></div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const MONTH_NAMES = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+        let currentMonthDaysData = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             loadDiligenceData();
@@ -359,7 +566,7 @@
                     const pct = Math.min((m.hours / m.target) * 100, 150);
 
                     html += `
-                        <div class="month-card ${dClass}">
+                        <div class="month-card ${dClass}" onclick="showMonthDetail(${yearKey}, ${m.month}, '${mName}', ${m.target})">
                             <div class="month-name">${mName}</div>
                             <div class="month-hours">${m.hours.toFixed(1)} <span>/ ${m.target}h</span></div>
                             <div class="month-delta ${dClass}">${dSign}${m.delta.toFixed(1)}h</div>
@@ -384,6 +591,122 @@
                 });
             });
         }
+
+        async function showMonthDetail(year, month, monthName, targetHours) {
+            document.getElementById('dashboardContent').style.display = 'none';
+            document.getElementById('monthDetailView').style.display = 'block';
+            document.getElementById('monthDetailTitle').textContent = `${year}年 ${monthName} 明细`;
+            
+            const container = document.getElementById('monthDetailContent');
+            container.innerHTML = `
+                <div class="loading-dashboard">
+                    <div class="spinner">⏳</div>
+                    <p>正在拉取 ${monthName} 每日数据...</p>
+                </div>`;
+            
+            try {
+                const resp = await fetch(`/api/diligence/${year}/${month}`);
+                const data = await resp.json();
+
+                if (!data.ok) {
+                    container.innerHTML = `<div class="loading-dashboard"><p>加载失败: ${data.error}</p></div>`;
+                    return;
+                }
+
+                if (!data.days || data.days.length === 0) {
+                    container.innerHTML = `
+                        <div class="loading-dashboard">
+                            <div class="spinner">📭</div>
+                            <p>该月没有每日明细数据。</p>
+                        </div>`;
+                    return;
+                }
+
+                const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
+                let html = '<div class="daily-grid">';
+                
+                let totalHours = 0;
+                currentMonthDaysData = data.days; // 缓存供弹窗使用
+
+                data.days.forEach((day, idx) => {
+                    totalHours += day.hours;
+                    const dateObj = new Date(day.date);
+                    const wd = weekdays[dateObj.getDay()];
+                    const dateDisplay = day.date.substring(5); // Show MM-DD
+                    
+                    let timeRange = '未记录时间';
+                    if (day.start && day.end) {
+                        timeRange = `${day.start} ~ ${day.end}`;
+                    }
+                    
+                    html += `
+                        <div class="daily-card" onclick="showDailyModal(${idx})">
+                            <div class="daily-date">
+                                <span>${dateDisplay} ${wd}</span>
+                                <span class="badge">${day.hours >= (targetHours/30)? '达标' : ''}</span>
+                            </div>
+                            <div class="daily-hours">${day.hours.toFixed(2)}<span> h</span></div>
+                            <div class="daily-time">🕙 ${timeRange}</div>
+                            <div class="daily-subject" title="${day.subject}">📄 ${day.subject || '无主题'}</div>
+                        </div>`;
+                });
+
+                html += '</div>';
+                container.innerHTML = html;
+
+            } catch(e) {
+                container.innerHTML = `<div class="loading-dashboard"><p>请求异常: ${e.message}</p></div>`;
+            }
+        }
+
+        function closeMonthDetail() {
+            document.getElementById('monthDetailView').style.display = 'none';
+            document.getElementById('dashboardContent').style.display = 'block';
+            
+            // 重新触发一遍进度条动画，视觉更连贯
+            requestAnimationFrame(() => {
+                document.querySelectorAll('.month-bar-fill').forEach(el => {
+                    const w = el.style.width;
+                    el.style.width = '0%';
+                    setTimeout(() => el.style.width = w, 50);
+                });
+            });
+        }
+
+        // --- 每日详情弹窗 ----
+        function showDailyModal(index) {
+            const day = currentMonthDaysData[index];
+            if (!day) return;
+
+            document.getElementById('modalTitle').textContent = `${day.date} 工作记录`;
+            
+            let timeRange = '未记录时间';
+            if (day.start && day.end) {
+                timeRange = `${day.start} ~ ${day.end}`;
+            }
+            document.getElementById('modalMeta').innerHTML = `
+                <span>⏳ ${day.hours.toFixed(2)}h</span>
+                <span>🕙 ${timeRange}</span>
+            `;
+
+            // 展示文本内容，使用 pre 标签以保留换行格式
+            let contentText = day.content || '未解析出工作内容正文。';
+            // 可以对其进行简单的转义防XSS
+            contentText = contentText.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            document.getElementById('modalText').innerHTML = `<pre>${contentText}</pre>`;
+
+            document.getElementById('dailyDetailModal').classList.add('show');
+            document.body.style.overflow = 'hidden'; // 防止背景滚动
+        }
+
+        function closeDailyModal(e) {
+            // 如果事件存在且点击的不是 overlay 本身，则不关闭
+            if (e && e.target.id !== 'dailyDetailModal') return;
+
+            document.getElementById('dailyDetailModal').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
     </script>
 </body>
 </html>

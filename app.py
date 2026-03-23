@@ -303,6 +303,46 @@ def api_diligence():
         "years": years_data
     })
 
+
+@app.route("/api/diligence/<int:year>/<int:month>")
+def api_month_diligence(year: int, month: int):
+    """获取指定年月的每一天勤奋详情"""
+    if not _db_available:
+        return jsonify({"ok": False, "error": "数据库不可用，无法显示每日详情"}), 503
+
+    try:
+        emails = email_repository.get_emails_by_month(year, month)
+        days = []
+        for em in emails:
+            from datetime import date as date_type
+            email_date = em.get('email_date')
+            if isinstance(email_date, str):
+                d_str = email_date
+            else:
+                d_str = email_date.strftime("%Y-%m-%d") if email_date else ""
+
+            days.append({
+                "date": d_str,
+                "subject": em.get('subject', ''),
+                "hours": em.get('diligence_hours', 0.0),
+                "start": em.get('diligence_start', ''),
+                "end": em.get('diligence_end', ''),
+                "content": em.get('content', '')
+            })
+        
+        # 按日期排序
+        days.sort(key=lambda x: x['date'])
+
+        return jsonify({
+            "ok": True,
+            "year": year,
+            "month": month,
+            "days": days
+        })
+    except Exception as e:
+        logger.error(f"获取 {year}年{month}月 详情失败: {e}")
+        return jsonify({"ok": False, "error": str(e)}), 500
+
 @app.route("/api/status")
 def api_status():
     """获取服务状态"""
