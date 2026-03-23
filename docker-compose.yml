@@ -1,6 +1,6 @@
 services:
   cetworkovertime:
-    image: cetworkovertime:2.0
+    image: pulongzhang/cetworkovertime:2.0
     container_name: cetworkovertime
     ports:
       - "5000:5000"
