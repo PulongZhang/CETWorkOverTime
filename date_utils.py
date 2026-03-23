@@ -87,7 +87,11 @@ class DateUtils:
             
             for fmt in date_formats:
                 try:
-                    return datetime.strptime(email_date.strip(), fmt)
+                    parsed = datetime.strptime(email_date.strip(), fmt)
+                    # 去除时区信息，统一为 naive datetime，避免与其他 naive datetime 比较时报错
+                    if parsed.tzinfo is not None:
+                        parsed = parsed.replace(tzinfo=None)
+                    return parsed
                 except ValueError:
                     continue
             

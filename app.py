@@ -66,10 +66,46 @@ _scheduler_info = {
 }
 
 
+def _sync_eml_to_db_and_cleanup(status_prefix: str = ""):
+    """
+    扫描本地 .eml 文件，解析并入库，入库成功后按配置清理文件
+
+    Args:
+        status_prefix: 状态消息前缀（用于区分定时/手动）
+
+    Returns:
+        (synced, cleaned) 同步数量和清理数量
+    """
+    if not _db_available:
+        logger.warning("数据库不可用，跳过入库")
+        return 0, 0
+
+    _update_status(True, _task_status.get("type"), f"{status_prefix}正在解析邮件并入库...")
+
+    processor = EmailProcessor(config.WORK_SUMMARY_DIR)
+    stats = processor.sync_to_db()
+    synced = stats.get('saved', 0)
+
+    cleaned = 0
+    if config.CLEANUP_EML_AFTER_SYNC:
+        _update_status(True, _task_status.get("type"), f"{status_prefix}正在清理本地 .eml 文件...")
+        eml_dir = config.WORK_SUMMARY_DIR
+        if eml_dir.exists():
+            for eml_file in list(eml_dir.glob(f"*{config.EMAIL_FILE_EXTENSION}")):
+                try:
+                    eml_file.unlink()
+                    cleaned += 1
+                except Exception as e:
+                    logger.warning(f"清理文件失败: {eml_file.name}: {e}")
+        logger.info(f"已清理 {cleaned} 个本地 .eml 文件")
+
+    return synced, cleaned
+
+
 def _scheduled_fetch_and_process():
-    """定时任务：抓取邮件并生成报告"""
+    """定时任务：抓取邮件并入库"""
     _scheduler_info["last_run"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    logger.info("⏰ 定时任务开始：自动抓取邮件并生成报告")
+    logger.info("⏰ 定时任务开始：自动抓取邮件并入库")
 
     with _task_lock:
         try:
@@ -94,12 +130,10 @@ def _scheduled_fetch_and_process():
                 _scheduler_info["last_result"] = "失败（连接邮箱失败）"
                 return
 
-            # 2) 生成报告（增量模式）
-            _update_status(True, "scheduled", "定时任务：正在生成报告...")
-            processor = EmailProcessor(config.WORK_SUMMARY_DIR)
-            processor.process_emails_for_months(None, incremental=True)
+            # 2) 入库并清理
+            synced, cleaned = _sync_eml_to_db_and_cleanup("定时任务：")
 
-            result_msg = f"完成！下载 {downloaded} 封邮件并更新报告"
+            result_msg = f"完成！下载 {downloaded} 封，入库 {synced} 封，清理 {cleaned} 个文件"
             _update_status(False, "scheduled", f"定时任务：{result_msg}")
             _scheduler_info["last_result"] = result_msg
             logger.info(f"⏰ 定时任务完成：{result_msg}")
@@ -296,47 +330,134 @@ def api_status():
 
 @app.route("/api/reports")
 def api_reports():
-    """获取所有报告列表"""
-    report_dir = config.OUTPUT_DIR
+    """获取所有报告列表（从数据库动态生成）"""
     reports = []
 
-    if report_dir.exists():
-        for f in sorted(report_dir.glob("*工作总结.md"), reverse=True):
-            stat = f.stat()
-            reports.append({
-                "filename": f.name,
-                "size": stat.st_size,
-                "modified": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
-            })
+    if _db_available:
+        try:
+            years = email_repository.get_all_years()
+            for year in sorted(years, reverse=True):
+                stats = email_repository.get_diligence_stats(year)
+                for month_info in sorted(stats.get('months', []), key=lambda m: m['month'], reverse=True):
+                    month = month_info['month']
+                    filename = config.REPORT_FILENAME_FORMAT.format(year=year, month=month)
+                    reports.append({
+                        "filename": filename,
+                        "entries": month_info['entries'],
+                        "hours": month_info['hours'],
+                        "source": "database"
+                    })
+        except Exception as e:
+            logger.warning(f"从数据库获取报告列表失败: {e}")
 
-    # 查找汇总报告
-    summary_file = report_dir / "工作总结汇总报告.md"
-    if summary_file.exists():
-        stat = summary_file.stat()
-        reports.insert(0, {
-            "filename": summary_file.name,
-            "size": stat.st_size,
-            "modified": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
-        })
+    # 如果数据库无数据，回退到本地文件
+    if not reports:
+        report_dir = config.OUTPUT_DIR
+        if report_dir.exists():
+            for f in sorted(report_dir.glob("*工作总结.md"), reverse=True):
+                stat = f.stat()
+                reports.append({
+                    "filename": f.name,
+                    "size": stat.st_size,
+                    "modified": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+                    "source": "file"
+                })
 
     return jsonify({"ok": True, "reports": reports})
 
 
+def _generate_report_from_db(year: int, month: int) -> str:
+    """从数据库动态生成指定月份的 Markdown 报告"""
+    emails = email_repository.get_emails_by_month(year, month)
+    if not emails:
+        return f"# {year}年{month:02d}月工作总结\n\n暂无数据。"
+
+    lines = []
+    lines.append(f"# {year}年{month:02d}月工作总结")
+    lines.append("")
+    lines.append("## 📊 统计信息")
+    lines.append("")
+    lines.append(f"- **工作日数**: {len(emails)} 天")
+
+    total_hours = sum(e.get('diligence_hours', 0) for e in emails)
+    lines.append(f"- **勤奋时间合计**: {total_hours:.2f} 小时")
+    lines.append("")
+    lines.append("## 📝 工作日志")
+    lines.append("")
+
+    weekdays = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
+    for em in emails:
+        from datetime import date as date_type
+        email_date = em.get('email_date', '')
+        if isinstance(email_date, str):
+            parts = email_date.split('-')
+            d = date_type(int(parts[0]), int(parts[1]), int(parts[2]))
+        else:
+            d = email_date
+
+        date_str = f"{d.year}年{d.month:02d}月{d.day:02d}日"
+        wd = weekdays[d.weekday()]
+        lines.append(f"### {date_str} ({wd})")
+        lines.append("")
+
+        if em.get('subject'):
+            lines.append(f"**主题**: {em['subject']}")
+
+        d_start = em.get('diligence_start', '')
+        d_end = em.get('diligence_end', '')
+        d_hours = em.get('diligence_hours', 0)
+        if d_hours and d_hours > 0:
+            lines.append(f"**勤奋时间**: {d_start} ~ {d_end}（{d_hours:.2f} 小时）")
+        lines.append("")
+
+        content = em.get('content', '')
+        if content:
+            lines.append("**工作内容**:")
+            lines.append("")
+            for line in content.split('\n'):
+                line = line.strip()
+                if line:
+                    if line[0].isdigit() or line.startswith('•') or line.startswith('-'):
+                        lines.append(f"- {line}")
+                    else:
+                        lines.append(line)
+                else:
+                    lines.append("")
+        lines.append("")
+
+    lines.append("---")
+    lines.append("*此报告从数据库动态生成*")
+    return '\n'.join(lines)
+
+
 @app.route("/api/report/<path:filename>")
 def api_report(filename):
-    """获取单个报告内容"""
-    report_path = config.OUTPUT_DIR / filename
+    """获取单个报告内容（优先从数据库动态生成）"""
+    import re as _re
 
-    if not report_path.exists() or not report_path.is_file():
-        abort(404, description=f"报告不存在: {filename}")
+    raw_md = None
 
-    # 安全检查：防止路径穿越
-    try:
-        report_path.resolve().relative_to(config.OUTPUT_DIR.resolve())
-    except ValueError:
-        abort(403, description="非法路径")
+    # 尝试从文件名解析年月，从数据库生成
+    if _db_available:
+        match = _re.search(r'(\d{4})年(\d{2})月', filename)
+        if match:
+            year = int(match.group(1))
+            month = int(match.group(2))
+            try:
+                raw_md = _generate_report_from_db(year, month)
+            except Exception as e:
+                logger.warning(f"从数据库生成报告失败，尝试本地文件: {e}")
 
-    raw_md = report_path.read_text(encoding="utf-8")
+    # 回退到本地文件
+    if raw_md is None:
+        report_path = config.OUTPUT_DIR / filename
+        if not report_path.exists() or not report_path.is_file():
+            abort(404, description=f"报告不存在: {filename}")
+        try:
+            report_path.resolve().relative_to(config.OUTPUT_DIR.resolve())
+        except ValueError:
+            abort(403, description="非法路径")
+        raw_md = report_path.read_text(encoding="utf-8")
 
     # 是否请求 HTML 渲染
     render_html = request.args.get("html", "1") == "1"
@@ -352,7 +473,7 @@ def api_report(filename):
 
 @app.route("/api/fetch", methods=["POST"])
 def api_fetch():
-    """触发邮件抓取"""
+    """触发邮件抓取（抓取 → 入库 → 清理）"""
     if _task_status["running"]:
         return jsonify({"ok": False, "error": "已有任务在运行中，请稍后重试"}), 409
 
@@ -367,15 +488,20 @@ def api_fetch():
             try:
                 _update_status(True, "fetch", "正在连接邮箱...")
                 fetcher = EmailFetcher(save_dir=config.WORK_SUMMARY_DIR)
+                downloaded = 0
                 if fetcher.connect():
                     try:
                         _update_status(True, "fetch", f"正在抓取最近 {days} 天的邮件...")
                         downloaded = fetcher.fetch_emails(days=days)
-                        _update_status(False, "fetch", f"完成！下载了 {downloaded} 封新邮件")
                     finally:
                         fetcher.disconnect()
                 else:
                     _update_status(False, "fetch", "连接邮箱失败，请检查配置")
+                    return
+
+                # 入库并清理
+                synced, cleaned = _sync_eml_to_db_and_cleanup()
+                _update_status(False, "fetch", f"完成！下载 {downloaded} 封，入库 {synced} 封，清理 {cleaned} 个文件")
             except Exception as e:
                 logger.error(f"邮件抓取失败: {e}", exc_info=True)
                 _update_status(False, "fetch", f"抓取失败: {e}")
@@ -438,7 +564,7 @@ def api_process():
 
 @app.route("/api/fetch-and-process", methods=["POST"])
 def api_fetch_and_process():
-    """一键抓取邮件并生成报告（与定时任务行为一致）"""
+    """一键抓取邮件并入库（与定时任务行为一致）"""
     if _task_status["running"]:
         return jsonify({"ok": False, "error": "已有任务在运行中，请稍后重试"}), 409
 
@@ -465,20 +591,17 @@ def api_fetch_and_process():
                     _update_status(False, "fetch-and-process", "连接邮箱失败，请检查配置")
                     return
 
-                # 2) 生成报告
-                _update_status(True, "fetch-and-process", f"已下载 {downloaded} 封邮件，正在生成报告...")
-                processor = EmailProcessor(config.WORK_SUMMARY_DIR)
-                processor.process_emails_for_months(None, incremental=True)
-
-                _update_status(False, "fetch-and-process", f"完成！下载 {downloaded} 封邮件，报告已更新")
+                # 2) 入库并清理
+                synced, cleaned = _sync_eml_to_db_and_cleanup()
+                _update_status(False, "fetch-and-process", f"完成！下载 {downloaded} 封，入库 {synced} 封，清理 {cleaned} 个文件")
             except Exception as e:
-                logger.error(f"一键抓取生成失败: {e}", exc_info=True)
+                logger.error(f"一键抓取入库失败: {e}", exc_info=True)
                 _update_status(False, "fetch-and-process", f"失败: {e}")
 
     thread = threading.Thread(target=_do_all, daemon=True)
     thread.start()
 
-    return jsonify({"ok": True, "message": "一键抓取并生成报告任务已启动"})
+    return jsonify({"ok": True, "message": "一键抓取并入库任务已启动"})
 
 
 # ==================== 数据库查询 API ====================

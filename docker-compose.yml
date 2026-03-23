@@ -4,6 +4,8 @@ services:
     container_name: cetworkovertime
     ports:
       - "5000:5000"
+    environment:
+      - TZ=Asia/Shanghai
     volumes:
       - ./工作总结:/app/工作总结
       - ./output:/app/output

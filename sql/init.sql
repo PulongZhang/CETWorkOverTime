@@ -1,14 +1,14 @@
 -- ============================================================
--- Email2Md 数据库初始化脚本
--- 执行方式: mysql -u root -p email2md < sql/init.sql
+-- CETWorkOverTime 数据库初始化脚本
+-- 执行方式: mysql -u root -p cetworkovertime < sql/init.sql
 -- ============================================================
 
 -- 创建数据库（如不存在）
-CREATE DATABASE IF NOT EXISTS email2md
+CREATE DATABASE IF NOT EXISTS cetworkovertime
     DEFAULT CHARACTER SET utf8mb4
     DEFAULT COLLATE utf8mb4_unicode_ci;
 
-USE email2md;
+USE cetworkovertime;
 
 -- ============================================================
 -- 1. 元数据表（不分表）
@@ -59,4 +59,4 @@ ALTER TABLE email_2026 COMMENT='邮件工作日志-2026年';
 -- ============================================================
 -- 初始化完成提示
 -- ============================================================
-SELECT '✅ Email2Md 数据库初始化完成!' AS message;
+SELECT '✅ CETWorkOverTime 数据库初始化完成!' AS message;

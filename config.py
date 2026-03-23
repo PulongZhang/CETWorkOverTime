@@ -81,3 +81,6 @@ DB_USER = os.getenv("DB_USER", "root")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_NAME = os.getenv("DB_NAME", "cetworkovertime")
 DB_CHARSET = os.getenv("DB_CHARSET", "utf8mb4")
+
+# ============ 清理配置 ============
+CLEANUP_EML_AFTER_SYNC = os.getenv("CLEANUP_EML_AFTER_SYNC", "true").lower() in ("true", "1", "yes")

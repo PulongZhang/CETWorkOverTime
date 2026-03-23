@@ -140,11 +140,34 @@ def ensure_year_table(year: int):
 
 def init_db():
     """
-    初始化数据库：创建元数据表和当前年份的邮件表
+    初始化数据库：自动创建数据库（如不存在）、创建元数据表和当前年份的邮件表
 
     应用启动时调用一次。
     """
     from datetime import datetime
+
+    # 先用不指定 database 的连接创建数据库（如不存在）
+    try:
+        conn = pymysql.connect(
+            host=config.DB_HOST,
+            port=config.DB_PORT,
+            user=config.DB_USER,
+            password=config.DB_PASSWORD,
+            charset=config.DB_CHARSET,
+            cursorclass=pymysql.cursors.DictCursor,
+        )
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"CREATE DATABASE IF NOT EXISTS `{config.DB_NAME}` "
+                    f"DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+                )
+            conn.commit()
+            logger.info(f"数据库 {config.DB_NAME} 已就绪")
+        finally:
+            conn.close()
+    except Exception as e:
+        logger.warning(f"自动创建数据库失败（可能已存在）: {e}")
 
     ensure_meta_table()
     current_year = datetime.now().year
