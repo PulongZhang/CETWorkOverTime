@@ -151,6 +151,38 @@
         let showingHtml = true;
         let currentReportData = null;
         let statusPollTimer = null;
+        let countdownTimer = null;
+        let nextRunTime = null;
+
+        function startCountdown() {
+            if (countdownTimer) clearInterval(countdownTimer);
+            
+            countdownTimer = setInterval(() => {
+                if (!nextRunTime) {
+                    document.getElementById('nextRun').textContent = '已关闭';
+                    clearInterval(countdownTimer);
+                    countdownTimer = null;
+                    return;
+                }
+                
+                const now = new Date().getTime();
+                const distance = nextRunTime - now;
+                
+                if (distance < 0) {
+                    document.getElementById('nextRun').textContent = '即将执行';
+                    return;
+                }
+                
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                
+                document.getElementById('nextRun').textContent = 
+                    String(hours).padStart(2, '0') + ':' + 
+                    String(minutes).padStart(2, '0') + ':' + 
+                    String(seconds).padStart(2, '0');
+            }, 1000);
+        }
 
         // ==================== 初始化 ====================
         document.addEventListener('DOMContentLoaded', () => {
@@ -201,10 +233,15 @@
                 // 调度器信息
                 const scheduler = data.scheduler;
                 if (scheduler && scheduler.next_run) {
-                    // 只显示时间部分
-                    const nextTime = scheduler.next_run.split(' ')[1] || scheduler.next_run;
-                    document.getElementById('nextRun').textContent = nextTime;
+                    const nextRunStr = scheduler.next_run.replace(' ', 'T');
+                    nextRunTime = new Date(nextRunStr).getTime();
+                    if (!countdownTimer) startCountdown();
                 } else {
+                    nextRunTime = null;
+                    if (countdownTimer) {
+                        clearInterval(countdownTimer);
+                        countdownTimer = null;
+                    }
                     document.getElementById('nextRun').textContent = '已关闭';
                 }
 
@@ -268,7 +305,11 @@
                         <div class="report-item-icon">${r.filename.includes('汇总') ? '📊' : '📄'}</div>
                         <div class="report-item-info">
                             <div class="report-item-name">${r.filename.replace('.md', '')}</div>
-                            <div class="report-item-meta">${r.modified} · ${formatSize(r.size)}</div>
+                            <div class="report-item-meta">
+                                ${r.source === 'database' 
+                                    ? `工作记录: ${r.entries} 条 · 勤奋: ${r.hours.toFixed(1)} h` 
+                                    : `${r.modified} · ${formatSize(r.size)}`}
+                            </div>
                         </div>
                     </div>
                 `).join('');
