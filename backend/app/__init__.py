@@ -1,0 +1,1 @@
+"""CETWorkOverTime FastAPI application."""
