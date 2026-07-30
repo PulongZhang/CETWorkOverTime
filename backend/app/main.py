@@ -1,15 +1,18 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, status
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.v1.router import router as api_router
-from app.core.config import get_settings
+from app.core.config import PROJECT_ROOT, get_settings
 from app.core.database import dispose_engine
 from app.scheduler import mail_scheduler
 from app.services.task_service import task_manager
 
 settings = get_settings()
+frontend_dist = PROJECT_ROOT / "frontend" / "dist"
 
 
 @asynccontextmanager
@@ -38,7 +41,30 @@ app.add_middleware(
 )
 app.include_router(api_router)
 
+if (frontend_dist / "assets").exists():
+    app.mount("/assets", StaticFiles(directory=frontend_dist / "assets"), name="assets")
+
 
 @app.get("/api/v1/health", tags=["system"])
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+def serve_spa(full_path: str) -> FileResponse:
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+    requested = frontend_dist / full_path
+    is_frontend_file = (
+        full_path
+        and requested.is_file()
+        and requested.resolve().is_relative_to(frontend_dist.resolve())
+    )
+    if is_frontend_file:
+        return FileResponse(requested)
+
+    index = frontend_dist / "index.html"
+    if not index.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="前端尚未构建")
+    return FileResponse(index)

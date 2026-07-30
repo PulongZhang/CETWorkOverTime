@@ -1,30 +1,27 @@
-FROM python:3.11-slim
+FROM node:22-alpine AS frontend-build
+WORKDIR /app/frontend
+RUN corepack enable
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY frontend/ ./
+RUN pnpm build
 
-# 设置工作目录
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim
 WORKDIR /app
-
-# 设置 Python 环境变量
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/backend/.venv/bin:$PATH"
 
-# 安装依赖
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY backend/pyproject.toml backend/uv.lock /app/backend/
+RUN uv sync --project /app/backend --frozen --no-dev
 
-# 复制源代码
-COPY . .
+COPY backend/ /app/backend/
+COPY sql/ /app/sql/
+COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
+RUN mkdir -p /app/工作总结 /app/output
 
-# 创建数据目录（会被 volume 覆盖）和 SQL 目录
-RUN mkdir -p /app/工作总结 /app/output /app/sql
-
-# 暴露端口
 EXPOSE 5000
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/v1/health')"
 
-# 启动命令 - gunicorn 生产级 WSGI 服务器
-CMD ["gunicorn", \
-     "--bind", "0.0.0.0:5000", \
-     "--workers", "2", \
-     "--timeout", "300", \
-     "--access-logfile", "-", \
-     "--error-logfile", "-", \
-     "app:app"]
+CMD ["uvicorn", "--app-dir", "/app/backend", "app.main:app", "--host", "0.0.0.0", "--port", "5000", "--workers", "1"]

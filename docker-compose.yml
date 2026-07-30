@@ -1,22 +1,16 @@
 services:
   cetworkovertime:
-    image: pulongzhang/cetworkovertime:2.1
+    build:
+      context: .
+    image: pulongzhang/cetworkovertime:3.0
     container_name: cetworkovertime
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     environment:
-      - TZ=Asia/Shanghai
+      TZ: Asia/Shanghai
     volumes:
       - ./工作总结:/app/工作总结
       - ./output:/app/output
     env_file:
       - .env
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/status')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-
-
