@@ -28,6 +28,7 @@ class Settings(BaseSettings):
 
     totp_secret: str = Field(default="JBSWY3DPEHPK3PXP", alias="TOTP_SECRET")
     secret_key: str = Field(default="cetworkovertime-super-secret-key", alias="SECRET_KEY")
+    cookie_secure: bool = Field(default=False, alias="COOKIE_SECURE")
 
     db_host: str = Field(default="localhost", alias="DB_HOST")
     db_port: int = Field(default=3306, alias="DB_PORT")
