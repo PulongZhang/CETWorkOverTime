@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import OperationalError
 
 from app.api.dependencies import get_repository
 from app.main import app
@@ -45,6 +46,14 @@ class FakeRepository:
         return None
 
 
+class UnavailableRepository(FakeRepository):
+    def get_all_years(self) -> list[int]:
+        raise OperationalError(None, None, ConnectionError("database unavailable"))
+
+    def get_emails_by_month(self, year: int, month: int) -> list[dict]:
+        raise OperationalError(None, None, ConnectionError("database unavailable"))
+
+
 def login(client: TestClient) -> None:
     with patch("app.api.v1.auth.pyotp.TOTP.verify", return_value=True):
         response = client.post("/api/v1/auth/login", json={"code": "123456"})
@@ -83,3 +92,22 @@ def test_diligence_and_report_api_use_repository() -> None:
     assert "<h1>2026年07月工作总结</h1>" in report.json()["html"]
 
     app.dependency_overrides.clear()
+
+
+def test_database_errors_return_service_unavailable() -> None:
+    app.dependency_overrides[get_repository] = lambda: UnavailableRepository()
+    client = TestClient(app)
+    login(client)
+
+    try:
+        responses = [
+            client.get("/api/v1/diligence"),
+            client.get("/api/v1/reports"),
+            client.get("/api/v1/emails?year=2026&month=7"),
+        ]
+
+        for response in responses:
+            assert response.status_code == 503
+            assert response.json() == {"detail": "数据库暂时不可用，请稍后重试"}
+    finally:
+        app.dependency_overrides.clear()

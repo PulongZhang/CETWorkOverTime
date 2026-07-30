@@ -1,8 +1,10 @@
+import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, status
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.v1.router import router as api_router
@@ -13,6 +15,7 @@ from app.services.task_service import task_manager
 
 settings = get_settings()
 frontend_dist = PROJECT_ROOT / "frontend" / "dist"
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -40,6 +43,19 @@ app.add_middleware(
     https_only=settings.cookie_secure,
 )
 app.include_router(api_router)
+
+
+@app.exception_handler(SQLAlchemyError)
+def database_error_handler(_: Request, error: SQLAlchemyError) -> JSONResponse:
+    logger.error(
+        "数据库操作失败",
+        exc_info=(type(error), error, error.__traceback__),
+    )
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"detail": "数据库暂时不可用，请稍后重试"},
+    )
+
 
 if (frontend_dist / "assets").exists():
     app.mount("/assets", StaticFiles(directory=frontend_dist / "assets"), name="assets")
