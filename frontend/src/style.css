@@ -89,8 +89,7 @@ a {
 }
 
 button:focus-visible,
-a:focus-visible,
-[tabindex]:focus-visible {
+a:focus-visible {
   outline: 3px solid rgb(139 180 255 / 72%);
   outline-offset: 3px;
 }
@@ -925,13 +924,29 @@ svg {
 }
 
 .login-card .el-input__wrapper {
-  min-height: 46px;
+  min-height: 48px;
+  padding: 0 15px;
+  border-radius: 10px;
+  background: var(--app-bg);
+  box-shadow: 0 0 0 1px var(--border-strong) inset;
+  transition: box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.login-card .el-input__wrapper:hover {
+  background: #0b1322;
+  box-shadow: 0 0 0 1px #4a6285 inset;
+}
+
+.login-card .el-input__wrapper.is-focus {
+  background: #0b1322;
+  box-shadow: 0 0 0 2px var(--action-primary) inset !important;
 }
 
 .login-card .el-input__inner {
+  color: var(--text-primary);
   font-size: 16px;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
 }
 
 .login-card .el-button {
@@ -960,7 +975,6 @@ svg {
 }
 
 .el-button:not(.is-disabled):focus-visible,
-.el-input__wrapper:focus-within,
 .el-input-number:focus-within {
   outline: 3px solid rgb(139 180 255 / 50%);
   outline-offset: 2px;
