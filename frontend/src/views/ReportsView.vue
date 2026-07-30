@@ -11,7 +11,7 @@ const reportMarkdown = ref('')
 const rawView = ref(false)
 const loading = ref(false)
 const task = ref<TaskStatus | null>(null)
-const days = ref(365)
+const days = ref(7)
 const errorMessage = ref('')
 const loadError = ref('')
 let timer: number | undefined
