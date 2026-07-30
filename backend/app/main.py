@@ -1,16 +1,32 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.v1.router import router as api_router
 from app.core.config import get_settings
+from app.core.database import dispose_engine
+from app.scheduler import mail_scheduler
+from app.services.task_service import task_manager
 
 settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    mail_scheduler.start()
+    yield
+    mail_scheduler.stop()
+    task_manager.shutdown()
+    dispose_engine()
+
 
 app = FastAPI(
     title="CETWorkOverTime API",
     version="3.0.0",
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
+    lifespan=lifespan,
 )
 app.add_middleware(
     SessionMiddleware,

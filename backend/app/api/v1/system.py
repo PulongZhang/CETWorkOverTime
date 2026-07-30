@@ -5,6 +5,8 @@ from sqlalchemy import text
 
 from app.api.dependencies import Authenticated, RepositoryDependency
 from app.core.config import get_settings
+from app.scheduler import mail_scheduler
+from app.services.task_service import task_manager
 
 router = APIRouter(tags=["system"])
 
@@ -18,14 +20,8 @@ def system_status(_: Authenticated) -> dict:
             "report_count": _count_files(settings.output_dir, "*工作总结.md"),
             "imap_configured": bool(settings.imap_username and settings.imap_password),
         },
-        "scheduler": {
-            "enabled": True,
-            "interval_hours": settings.schedule_interval_hours,
-            "next_run": None,
-            "last_run": None,
-            "last_result": None,
-        },
-        "task": {"running": False, "type": None, "message": ""},
+        "scheduler": mail_scheduler.status(),
+        "task": task_manager.status(),
     }
 
 
