@@ -1,11 +1,9 @@
 services:
   cetworkovertime:
-    build:
-      context: .
-    image: pulongzhang/cetworkovertime:3.0
+    image: pulongzhang/cetworkovertime:latest
     container_name: cetworkovertime
     ports:
-      - "127.0.0.1:5000:5000"
+      - "5000:5000"
     environment:
       TZ: Asia/Shanghai
     volumes:
@@ -13,4 +11,16 @@ services:
       - ./output:/app/output
     env_file:
       - .env
+    networks:
+      - 1panel-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  1panel-network:
+    external: true

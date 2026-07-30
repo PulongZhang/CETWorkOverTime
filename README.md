@@ -29,29 +29,64 @@ sql/init.sql             兼容数据库初始化脚本
 
 ## Docker 部署
 
-1. 创建配置：
+当前 Compose 配置使用 Docker Hub 上的 `pulongzhang/cetworkovertime:latest`，并连接 1Panel 创建的外部网络 `1panel-network`。MySQL 容器需要在该网络中提供 `mysql` 网络别名，数据库端口无需暴露到公网。
+
+1. 确认外部网络存在：
+
+   ```bash
+   docker network inspect 1panel-network
+   ```
+
+2. 创建配置：
 
    ```bash
    cp .env.example .env
    ```
 
-2. 修改 `.env` 中的 MySQL、IMAP、TOTP 和 Session 配置。
+3. 修改 `.env` 中的 MySQL、IMAP、TOTP 和 Session 配置。使用 1Panel MySQL 时，数据库地址配置为：
 
-3. 构建并启动：
-
-   ```bash
-   docker compose up -d --build
+   ```env
+   DB_HOST=mysql
+   DB_PORT=3306
    ```
 
-4. 访问 `http://127.0.0.1:5000`。
+   数据库账号、密码和库名按实际环境填写。启用 HTTPS 后设置：
 
-默认仅绑定宿主机 `127.0.0.1`。通过 OpenResty/1Panel 发布时，将反向代理指向该地址，并保持 `/api/v1` 路径不变。启用 HTTPS 后设置：
+   ```env
+   COOKIE_SECURE=true
+   ```
 
-```env
-COOKIE_SECURE=true
+4. 拉取镜像并启动：
+
+   ```bash
+   docker compose pull
+   docker compose up -d --force-recreate
+   ```
+
+5. 检查容器和数据库主机解析：
+
+   ```bash
+   docker compose ps
+   docker exec cetworkovertime python -c "import socket; print(socket.gethostbyname('mysql'))"
+   docker compose logs --tail=50 cetworkovertime
+   ```
+
+   容器健康检查访问 `GET /api/v1/health`。数据库连接正常时，日志中不应出现 `Name or service not known`。
+
+6. 访问 `http://服务器地址:5000`。通过 OpenResty/1Panel 发布时，将反向代理指向宿主机的 `5000` 端口，并保持 `/api/v1` 路径不变。如果仅需本机反向代理访问，可将 Compose 端口映射改为 `127.0.0.1:5000:5000`。
+
+应用使用单 Worker，因为内置调度器和任务状态保存在应用进程中。不要将 MySQL 的 `3306` 端口发布到公网；应用通过 `1panel-network` 直接访问 `mysql:3306`。
+
+### 常见数据库连接问题
+
+若日志提示无法解析主机 `mysql`，表示应用容器与 MySQL 容器不在同一个 Docker 网络。检查两个容器的网络配置：
+
+```bash
+docker inspect cetworkovertime --format '{{json .NetworkSettings.Networks}}'
+docker inspect 1Panel-mysql-TDOY --format '{{json .NetworkSettings.Networks}}'
 ```
 
-应用使用单 Worker，因为内置调度器和任务状态保存在应用进程中。
+两者均应包含 `1panel-network`。若 1Panel 中的 MySQL 容器名称不同，请替换检查命令中的容器名称；`.env` 中仍使用该容器在网络内配置的别名。
 
 ## 本地开发
 
