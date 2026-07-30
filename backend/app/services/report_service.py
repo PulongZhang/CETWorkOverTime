@@ -1,5 +1,6 @@
 from datetime import date
 
+import bleach
 import markdown
 
 
@@ -44,7 +45,17 @@ def build_monthly_markdown(year: int, month: int, emails: list[dict]) -> str:
 
 
 def render_markdown(content: str) -> str:
-    return markdown.markdown(
+    rendered = markdown.markdown(
         content,
         extensions=["tables", "fenced_code", "nl2br", "sane_lists"],
+    )
+    return bleach.clean(
+        rendered,
+        tags={
+            "h1", "h2", "h3", "h4", "p", "br", "hr", "strong", "em",
+            "ul", "ol", "li", "blockquote", "pre", "code", "table",
+            "thead", "tbody", "tr", "th", "td",
+        },
+        attributes={},
+        strip=True,
     )
