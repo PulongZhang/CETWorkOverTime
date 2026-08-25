@@ -6,6 +6,7 @@ from typing import Callable
 from app import legacy_config as config
 from app.services.email_fetcher import EmailFetcher
 from app.services.email_processor import EmailProcessor
+from app.services.work_plan_checker import work_plan_checker
 
 
 class TaskActions:
@@ -20,10 +21,14 @@ class TaskActions:
 
         stats = EmailProcessor(config.WORK_SUMMARY_DIR).sync_to_db()
         cleaned = self._cleanup_eml_files()
-        return (
+        result = (
             f"下载 {downloaded} 封，入库 {stats.get('saved', 0)} 封，"
             f"清理 {cleaned} 个文件"
         )
+
+        # 检查当天是否提交了工作计划（未提交时自动发提醒）
+        plan = work_plan_checker.check_today()
+        return f"{result}；工作计划：{plan['message']}"
 
     def process(self, force: bool = False) -> str:
         processor = EmailProcessor(config.WORK_SUMMARY_DIR)

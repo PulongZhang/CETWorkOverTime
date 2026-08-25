@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     diligence_target_hours: float = Field(default=36, alias="DILIGENCE_TARGET_HOURS")
     schedule_time: str = Field(default="21:00", alias="SCHEDULE_TIME")
     cleanup_eml_after_sync: bool = Field(default=True, alias="CLEANUP_EML_AFTER_SYNC")
+    work_plan_subject: str = Field(default="工作计划", alias="WORK_PLAN_SUBJECT")
+    work_plan_remind_enabled: bool = Field(default=True, alias="WORK_PLAN_REMIND_ENABLED")
+    work_plan_remind_to: str = Field(default="", alias="WORK_PLAN_REMIND_TO")
 
     def model_post_init(self, __context: object) -> None:
         if not self.work_summary_dir.is_absolute():

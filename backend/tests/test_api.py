@@ -106,10 +106,11 @@ def test_send_email_requires_authentication() -> None:
 def test_send_email_requires_smtp_configuration() -> None:
     client = TestClient(app)
     login(client)
-    response = client.post(
-        "/api/v1/emails/send",
-        json={"to": "boss@example.com", "subject": "报告", "content": "正文"},
-    )
+    with patch("app.api.v1.emails.email_sender.is_configured", return_value=False):
+        response = client.post(
+            "/api/v1/emails/send",
+            json={"to": "boss@example.com", "subject": "报告", "content": "正文"},
+        )
 
     assert response.status_code == 400
     assert "SMTP" in response.json()["detail"]
