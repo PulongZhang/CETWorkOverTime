@@ -187,8 +187,7 @@ class WorkPlanChecker:
         subject = f"工作计划未提交提醒[{date_str}]"
         content = (
             f"您好，\n\n"
-            f"今天（{date_str}）的工作计划尚未提交。\n"
-            f"请在邮件中提交主题为「工作计划[{date_str}]--[提交成功]」的工作计划。\n\n"
+            f"今天（{date_str}）的工作计划尚未提交。\n\n"
             f"本邮件由 CETWorkOverTime 自动发送。"
         )
         try:
