@@ -94,6 +94,74 @@ def test_diligence_and_report_api_use_repository() -> None:
     app.dependency_overrides.clear()
 
 
+def test_send_email_requires_authentication() -> None:
+    response = TestClient(app).post(
+        "/api/v1/emails/send",
+        json={"to": "boss@example.com", "subject": "报告", "content": "正文"},
+    )
+
+    assert response.status_code == 401
+
+
+def test_send_email_requires_smtp_configuration() -> None:
+    client = TestClient(app)
+    login(client)
+    response = client.post(
+        "/api/v1/emails/send",
+        json={"to": "boss@example.com", "subject": "报告", "content": "正文"},
+    )
+
+    assert response.status_code == 400
+    assert "SMTP" in response.json()["detail"]
+
+
+def test_send_email_delegates_to_sender() -> None:
+    client = TestClient(app)
+    login(client)
+
+    with (
+        patch("app.api.v1.emails.email_sender.is_configured", return_value=True),
+        patch("app.api.v1.emails.email_sender.send", return_value="250 OK") as mock,
+    ):
+        response = client.post(
+            "/api/v1/emails/send",
+            json={"to": "boss@example.com", "subject": "年度报告", "content": "正文"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "success": True,
+        "to": "boss@example.com",
+        "subject": "年度报告",
+    }
+    mock.assert_called_once_with(
+        to_addr="boss@example.com",
+        cc=None,
+        subject="年度报告",
+        content="正文",
+        html=None,
+    )
+
+
+def test_send_email_maps_sender_failure_to_502() -> None:
+    client = TestClient(app)
+    login(client)
+
+    with (
+        patch("app.api.v1.emails.email_sender.is_configured", return_value=True),
+        patch(
+            "app.api.v1.emails.email_sender.send",
+            side_effect=RuntimeError("SMTP 连接超时"),
+        ),
+    ):
+        response = client.post(
+            "/api/v1/emails/send",
+            json={"to": "boss@example.com", "subject": "报告", "content": "正文"},
+        )
+
+    assert response.status_code == 502
+
+
 def test_database_errors_return_service_unavailable() -> None:
     app.dependency_overrides[get_repository] = lambda: UnavailableRepository()
     client = TestClient(app)

@@ -26,6 +26,13 @@ class Settings(BaseSettings):
     imap_search_subject: str = Field(default="--工作日志", alias="IMAP_SEARCH_SUBJECT")
     imap_search_days: int = Field(default=365, alias="IMAP_SEARCH_DAYS")
 
+    smtp_host: str = Field(default="smtp.exmail.qq.com", alias="SMTP_HOST")
+    smtp_port: int = Field(default=465, alias="SMTP_PORT")
+    smtp_use_ssl: bool = Field(default=True, alias="SMTP_USE_SSL")
+    smtp_username: str = Field(default="", alias="SMTP_USERNAME")
+    smtp_password: str = Field(default="", alias="SMTP_PASSWORD")
+    smtp_from: str = Field(default="", alias="SMTP_FROM")
+
     totp_secret: str = Field(default="JBSWY3DPEHPK3PXP", alias="TOTP_SECRET")
     secret_key: str = Field(default="cetworkovertime-super-secret-key", alias="SECRET_KEY")
     cookie_secure: bool = Field(default=False, alias="COOKIE_SECURE")

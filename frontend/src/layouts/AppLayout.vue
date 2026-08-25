@@ -61,6 +61,13 @@ onBeforeUnmount(() => window.clearInterval(timer))
           </svg>
           报告管理
         </RouterLink>
+        <RouterLink to="/compose">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M4 5.5h16v13H4z" />
+            <path d="m4 7 8 6 8-6" />
+          </svg>
+          发邮件
+        </RouterLink>
       </nav>
       <div class="header-actions">
         <span class="runtime-status" :class="{ busy: status?.task.running }" role="status">

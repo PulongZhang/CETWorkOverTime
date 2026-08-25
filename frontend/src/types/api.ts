@@ -49,6 +49,7 @@ export interface SystemStatus {
     email_count: number
     report_count: number
     imap_configured: boolean
+    smtp_configured: boolean
   }
   scheduler: {
     enabled: boolean

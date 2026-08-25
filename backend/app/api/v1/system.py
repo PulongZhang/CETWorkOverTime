@@ -19,6 +19,12 @@ def system_status(_: Authenticated) -> dict:
             "email_count": _count_files(settings.work_summary_dir, "*.eml"),
             "report_count": _count_files(settings.output_dir, "*工作总结.md"),
             "imap_configured": bool(settings.imap_username and settings.imap_password),
+            "smtp_configured": bool(
+                settings.smtp_host
+                and settings.smtp_username
+                and settings.smtp_password
+                and settings.smtp_from
+            ),
         },
         "scheduler": mail_scheduler.status(),
         "task": task_manager.status(),
