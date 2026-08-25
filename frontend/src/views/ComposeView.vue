@@ -63,20 +63,22 @@ onMounted(() => fillTemplate('plan'))
 </script>
 
 <template>
-  <section>
+  <section class="compose-page">
     <div class="page-heading">
       <div>
         <span class="eyebrow">COMPOSE</span>
         <h1>发邮件</h1>
         <p>使用模板快速发送每日工作计划与工作总结。</p>
       </div>
-      <div class="template-actions">
-        <el-button @click="fillTemplate('plan')">填入每日计划</el-button>
-        <el-button @click="fillTemplate('summary')">填入每日总结</el-button>
-      </div>
     </div>
 
     <form class="compose-card" @submit.prevent="send">
+      <div class="template-actions" role="group" aria-label="填入模板">
+        <span class="template-label">模板</span>
+        <el-button @click="fillTemplate('plan')">每日计划</el-button>
+        <el-button @click="fillTemplate('summary')">每日总结</el-button>
+      </div>
+
       <div class="compose-row">
         <label for="compose-to">收件人</label>
         <el-input id="compose-to" v-model="to" placeholder="收件人邮箱" />
@@ -115,14 +117,41 @@ onMounted(() => fillTemplate('plan'))
   gap: 8px;
 }
 
+.compose-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.compose-page .page-heading {
+  width: 100%;
+  max-width: 760px;
+}
+
 .compose-card {
   display: grid;
   gap: 14px;
+  width: 100%;
   max-width: 760px;
   padding: 24px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   background: var(--surface-1);
+}
+
+.template-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.template-label {
+  margin-right: auto;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .compose-row {
@@ -167,7 +196,12 @@ onMounted(() => fillTemplate('plan'))
 
 @media (max-width: 680px) {
   .template-actions {
+    flex-wrap: wrap;
+  }
+
+  .template-label {
     width: 100%;
+    margin: 0 0 2px;
   }
 
   .template-actions .el-button {
