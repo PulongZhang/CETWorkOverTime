@@ -7,6 +7,9 @@ from app.services.task_service import task_actions, task_manager
 # 北京时间（UTC+8）固定时区
 BEIJING_TZ = timezone(timedelta(hours=8))
 
+# 每日任务媒点：21:00 拉取+检查；23:55 未提交则自动提交+通知
+SCHEDULE_TIMES = ["21:00", "23:55"]
+
 
 def parse_time(value: str) -> str:
     """校验 SCHEDULE_TIME 配置为 HH:MM，返回规范格式。"""
@@ -35,53 +38,72 @@ def next_run_at(now: datetime, schedule: str) -> datetime:
 
 class MailScheduler:
     def __init__(self) -> None:
-        self.schedule_time = parse_time(get_settings().schedule_time)
-        self._timer: threading.Timer | None = None
+        self.schedule_times = [parse_time(value) for value in SCHEDULE_TIMES]
+        self._timers: dict[str, threading.Timer] = {}
         self.next_run: str | None = None
         self.last_run: str | None = None
         self.last_result: str | None = None
 
     def start(self) -> None:
-        if self._timer is None:
-            self._schedule_next()
+        if not self._timers:
+            now = datetime.now().astimezone()
+            for schedule in self.schedule_times:
+                target = next_run_at(now, schedule)
+                seconds = max((target - now).total_seconds(), 1)
+                timer = threading.Timer(seconds, self._run, args=(schedule,))
+                timer.daemon = True
+                timer.start()
+                self._timers[schedule] = timer
+            self.next_run = min(
+                (next_run_at(now, s) for s in self.schedule_times)
+            ).isoformat(timespec="seconds")
 
     def stop(self) -> None:
-        if self._timer:
-            self._timer.cancel()
-            self._timer = None
+        for timer in self._timers.values():
+            timer.cancel()
+        self._timers.clear()
         self.next_run = None
 
     def status(self) -> dict:
         return {
-            "enabled": self._timer is not None,
-            "schedule_time": self.schedule_time,
+            "enabled": bool(self._timers),
+            "schedule_times": self.schedule_times,
             "next_run": self.next_run,
             "last_run": self.last_run,
             "last_result": self.last_result,
         }
 
-    def _run(self) -> None:
-        self._timer = None
+    def _run(self, schedule: str) -> None:
+        self._timers.pop(schedule, None)
         self.last_run = datetime.now().astimezone().isoformat(timespec="seconds")
         try:
-            settings = get_settings()
-            task_manager.submit(
-                "scheduled",
-                lambda: task_actions.fetch_and_sync(settings.imap_search_days),
-            )
-            self.last_result = "任务已启动"
+            if schedule == "21:00":
+                settings = get_settings()
+                task_manager.submit(
+                    "scheduled",
+                    lambda: task_actions.fetch_and_sync(settings.imap_search_days),
+                )
+                self.last_result = "任务已启动"
+            elif schedule == "23:55":
+                task_manager.submit(
+                    "auto-submit",
+                    lambda: task_actions.auto_submit_work_plan(),
+                )
+                self.last_result = "自动提交任务已启动"
         except RuntimeError as error:
             self.last_result = str(error)
         finally:
-            self._schedule_next()
-
-    def _schedule_next(self) -> None:
-        target = next_run_at(datetime.now().astimezone(), self.schedule_time)
-        seconds = max((target - datetime.now().astimezone()).total_seconds(), 1)
-        self.next_run = target.isoformat(timespec="seconds")
-        self._timer = threading.Timer(seconds, self._run)
-        self._timer.daemon = True
-        self._timer.start()
+            # 重新排队下一次（次日同一时刻）
+            now = datetime.now().astimezone()
+            target = next_run_at(now, schedule)
+            seconds = max((target - now).total_seconds(), 1)
+            timer = threading.Timer(seconds, self._run, args=(schedule,))
+            timer.daemon = True
+            timer.start()
+            self._timers[schedule] = timer
+            self.next_run = min(
+                (next_run_at(now, s) for s in self.schedule_times)
+            ).isoformat(timespec="seconds")
 
 
 mail_scheduler = MailScheduler()

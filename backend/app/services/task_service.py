@@ -40,6 +40,10 @@ class TaskActions:
             raise RuntimeError("报告生成失败，请查看服务日志")
         return "报告生成完成"
 
+    def auto_submit_work_plan(self) -> str:
+        """23:55 定时任务：若当天未提交工作计划则自动提交并通知"""
+        return work_plan_checker.auto_submit_today()
+
     @staticmethod
     def _cleanup_eml_files() -> int:
         if not config.CLEANUP_EML_AFTER_SYNC:
