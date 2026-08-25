@@ -6,6 +6,7 @@ from sqlalchemy import text
 from app.api.dependencies import Authenticated, RepositoryDependency
 from app.core.config import get_settings
 from app.scheduler import mail_scheduler
+from app.services.email_sender import sender as email_sender
 from app.services.task_service import task_manager
 
 router = APIRouter(tags=["system"])
@@ -19,12 +20,7 @@ def system_status(_: Authenticated) -> dict:
             "email_count": _count_files(settings.work_summary_dir, "*.eml"),
             "report_count": _count_files(settings.output_dir, "*工作总结.md"),
             "imap_configured": bool(settings.imap_username and settings.imap_password),
-            "smtp_configured": bool(
-                settings.smtp_host
-                and settings.smtp_username
-                and settings.smtp_password
-                and settings.smtp_from
-            ),
+            "smtp_configured": email_sender.is_configured(),
         },
         "scheduler": mail_scheduler.status(),
         "task": task_manager.status(),

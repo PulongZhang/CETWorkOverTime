@@ -3,12 +3,13 @@ from datetime import datetime, timedelta, timezone
 
 from app.core.config import get_settings
 from app.services.task_service import task_actions, task_manager
+from app.services.work_plan_checker import AUTO_SUBMIT_DEADLINE
 
-# 北京时间（UTC+8）固定时区
 BEIJING_TZ = timezone(timedelta(hours=8))
-
-# 每日任务媒点：21:00 拉取+检查；23:55 未提交则自动提交+通知
-SCHEDULE_TIMES = ["21:00", "23:55"]
+FETCH_JOB = "scheduled"
+AUTO_SUBMIT_JOB = "auto-submit"
+AUTO_SUBMIT_TIME = "23:55"
+AUTO_SUBMIT_RETRY_SECONDS = 30
 
 
 def parse_time(value: str) -> str:
@@ -23,13 +24,13 @@ def parse_time(value: str) -> str:
 
 
 def next_run_at(now: datetime, schedule: str) -> datetime:
-    """返回 now 之后（严格晚于 now）的下一次调度时刻（北京时间）。
-
-    若调度的 HH:MM 已经过去，则顺延到明天同一时刻。
-    """
+    """返回严格晚于 now 的下一次北京时间调度时刻。"""
     hour, minute = (int(part) for part in schedule.split(":"))
     candidate = now.astimezone(BEIJING_TZ).replace(
-        hour=hour, minute=minute, second=0, microsecond=0
+        hour=hour,
+        minute=minute,
+        second=0,
+        microsecond=0,
     )
     if candidate <= now:
         candidate += timedelta(days=1)
@@ -38,30 +39,62 @@ def next_run_at(now: datetime, schedule: str) -> datetime:
 
 class MailScheduler:
     def __init__(self) -> None:
-        self.schedule_times = [parse_time(value) for value in SCHEDULE_TIMES]
+        settings = get_settings()
+        self.jobs = {
+            FETCH_JOB: parse_time(settings.schedule_time),
+            AUTO_SUBMIT_JOB: AUTO_SUBMIT_TIME,
+        }
+        self.schedule_times = list(self.jobs.values())
+        self.auto_submit_retry_seconds = AUTO_SUBMIT_RETRY_SECONDS
         self._timers: dict[str, threading.Timer] = {}
+        self._next_runs: dict[str, datetime] = {}
         self.next_run: str | None = None
         self.last_run: str | None = None
         self.last_result: str | None = None
 
     def start(self) -> None:
-        if not self._timers:
-            now = datetime.now().astimezone()
-            for schedule in self.schedule_times:
+        if self._timers:
+            return
+
+        now = datetime.now().astimezone()
+        missed_auto_submit_date: str | None = None
+        for job, schedule in self.jobs.items():
+            if job == AUTO_SUBMIT_JOB and self._should_catch_up(now, schedule):
+                target = now + timedelta(seconds=1)
+                business_date = self._business_date(now)
+            else:
+                if job == AUTO_SUBMIT_JOB and self._is_after_deadline(now):
+                    missed_auto_submit_date = self._business_date(now)
                 target = next_run_at(now, schedule)
-                seconds = max((target - now).total_seconds(), 1)
-                timer = threading.Timer(seconds, self._run, args=(schedule,))
-                timer.daemon = True
-                timer.start()
-                self._timers[schedule] = timer
-            self.next_run = min(
-                (next_run_at(now, s) for s in self.schedule_times)
-            ).isoformat(timespec="seconds")
+                business_date = self._business_date(target)
+            self._schedule_at(job, target, business_date, now=now)
+
+        try:
+            pending_dates = task_actions.pending_auto_submit_dates()
+        except RuntimeError as error:
+            pending_dates = []
+            self.last_result = str(error)
+        if pending_dates:
+            try:
+                task_manager.submit(
+                    "auto-submit-recovery",
+                    task_actions.resume_pending_work_plans,
+                )
+                self.last_result = f"正在恢复 {len(pending_dates)} 个工作计划发送状态"
+            except RuntimeError as error:
+                self.last_result = str(error)
+
+        if missed_auto_submit_date:
+            task_actions.notify_auto_submit_skipped(
+                missed_auto_submit_date,
+                "服务在自动提交安全截止时间后启动",
+            )
 
     def stop(self) -> None:
         for timer in self._timers.values():
             timer.cancel()
         self._timers.clear()
+        self._next_runs.clear()
         self.next_run = None
 
     def status(self) -> dict:
@@ -73,37 +106,120 @@ class MailScheduler:
             "last_result": self.last_result,
         }
 
-    def _run(self, schedule: str) -> None:
-        self._timers.pop(schedule, None)
-        self.last_run = datetime.now().astimezone().isoformat(timespec="seconds")
+    def _run(self, job: str, business_date: str) -> None:
+        self._timers.pop(job, None)
+        self._next_runs.pop(job, None)
+        now = datetime.now().astimezone()
+        self.last_run = now.isoformat(timespec="seconds")
+
+        if job == AUTO_SUBMIT_JOB and self._business_date(now) != business_date:
+            reason = "调度任务延迟至下一业务日，已取消旧日期的自动提交"
+            self.last_result = f"{business_date} 自动提交未执行：{reason}"
+            self._schedule_next(job, now)
+            task_actions.notify_auto_submit_skipped(business_date, reason)
+            return
+
         try:
-            if schedule == "21:00":
+            if job == FETCH_JOB:
                 settings = get_settings()
                 task_manager.submit(
-                    "scheduled",
-                    lambda: task_actions.fetch_and_sync(settings.imap_search_days),
+                    FETCH_JOB,
+                    lambda: task_actions.fetch_and_sync(
+                        settings.imap_search_days,
+                        business_date,
+                    ),
                 )
                 self.last_result = "任务已启动"
-            elif schedule == "23:55":
+            elif job == AUTO_SUBMIT_JOB:
                 task_manager.submit(
-                    "auto-submit",
-                    lambda: task_actions.auto_submit_work_plan(),
+                    AUTO_SUBMIT_JOB,
+                    lambda: task_actions.auto_submit_work_plan(business_date),
                 )
                 self.last_result = "自动提交任务已启动"
+            else:
+                raise RuntimeError(f"未知调度任务: {job}")
         except RuntimeError as error:
+            if job == AUTO_SUBMIT_JOB and self._business_date(now) == business_date:
+                if self._schedule_auto_submit_retry(now, business_date, str(error)):
+                    return
+                self._schedule_next(job, now)
+                task_actions.notify_auto_submit_skipped(business_date, str(error))
+                return
             self.last_result = str(error)
-        finally:
-            # 重新排队下一次（次日同一时刻）
-            now = datetime.now().astimezone()
-            target = next_run_at(now, schedule)
-            seconds = max((target - now).total_seconds(), 1)
-            timer = threading.Timer(seconds, self._run, args=(schedule,))
-            timer.daemon = True
-            timer.start()
-            self._timers[schedule] = timer
-            self.next_run = min(
-                (next_run_at(now, s) for s in self.schedule_times)
-            ).isoformat(timespec="seconds")
+
+        self._schedule_next(job, now)
+
+    def _schedule_auto_submit_retry(
+        self,
+        now: datetime,
+        business_date: str,
+        reason: str,
+    ) -> bool:
+        deadline_hour, deadline_minute = (
+            int(part) for part in AUTO_SUBMIT_DEADLINE.split(":")
+        )
+        deadline = now.astimezone(BEIJING_TZ).replace(
+            hour=deadline_hour,
+            minute=deadline_minute,
+            second=0,
+            microsecond=0,
+        )
+        last_attempt = deadline - timedelta(seconds=1)
+        if now >= last_attempt:
+            self.last_result = f"{business_date} 自动提交未执行：{reason}"
+            return False
+
+        retry_at = min(
+            now + timedelta(seconds=self.auto_submit_retry_seconds),
+            last_attempt,
+        )
+        retry_seconds = max((retry_at - now).total_seconds(), 1)
+        self.last_result = f"{reason}，将在 {retry_seconds:g} 秒后重试"
+        self._schedule_at(AUTO_SUBMIT_JOB, retry_at, business_date, now=now)
+        return True
+
+    def _schedule_next(self, job: str, now: datetime) -> None:
+        target = next_run_at(now, self.jobs[job])
+        self._schedule_at(job, target, self._business_date(target), now=now)
+
+    def _schedule_at(
+        self,
+        job: str,
+        target: datetime,
+        business_date: str,
+        *,
+        now: datetime,
+    ) -> None:
+        seconds = max((target - now).total_seconds(), 1)
+        timer = threading.Timer(seconds, self._run, args=(job, business_date))
+        timer.daemon = True
+        timer.start()
+        self._timers[job] = timer
+        self._next_runs[job] = target
+        self._refresh_next_run()
+
+    def _refresh_next_run(self) -> None:
+        self.next_run = (
+            min(self._next_runs.values()).isoformat(timespec="seconds")
+            if self._next_runs
+            else None
+        )
+
+    @staticmethod
+    def _business_date(value: datetime) -> str:
+        return value.astimezone(BEIJING_TZ).strftime("%Y-%m-%d")
+
+    @staticmethod
+    def _should_catch_up(now: datetime, schedule: str) -> bool:
+        beijing_now = now.astimezone(BEIJING_TZ)
+        scheduled_time = datetime.strptime(schedule, "%H:%M").time()
+        deadline = datetime.strptime(AUTO_SUBMIT_DEADLINE, "%H:%M").time()
+        return scheduled_time <= beijing_now.time() < deadline
+
+    @staticmethod
+    def _is_after_deadline(now: datetime) -> bool:
+        deadline = datetime.strptime(AUTO_SUBMIT_DEADLINE, "%H:%M").time()
+        return now.astimezone(BEIJING_TZ).time() >= deadline
 
 
 mail_scheduler = MailScheduler()

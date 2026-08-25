@@ -10,7 +10,7 @@ from app.services.work_plan_checker import work_plan_checker
 
 
 class TaskActions:
-    def fetch_and_sync(self, days: int) -> str:
+    def fetch_and_sync(self, days: int, business_date: str | None = None) -> str:
         fetcher = EmailFetcher(save_dir=config.WORK_SUMMARY_DIR)
         if not fetcher.connect():
             raise RuntimeError("连接邮箱失败，请检查 IMAP 配置")
@@ -26,8 +26,12 @@ class TaskActions:
             f"清理 {cleaned} 个文件"
         )
 
-        # 检查当天是否提交了工作计划（未提交时自动发提醒）
-        plan = work_plan_checker.check_today()
+        # 定时任务使用调度时捕获的业务日期，避免执行跨午夜后检查错日。
+        plan = (
+            work_plan_checker.check_for_date(business_date)
+            if business_date
+            else work_plan_checker.check_today()
+        )
         return f"{result}；工作计划：{plan['message']}"
 
     def process(self, force: bool = False) -> str:
@@ -40,9 +44,21 @@ class TaskActions:
             raise RuntimeError("报告生成失败，请查看服务日志")
         return "报告生成完成"
 
-    def auto_submit_work_plan(self) -> str:
-        """23:55 定时任务：若当天未提交工作计划则自动提交并通知"""
-        return work_plan_checker.auto_submit_today()
+    def auto_submit_work_plan(self, business_date: str) -> str:
+        """23:55 定时任务：处理指定业务日期的工作计划。"""
+        return work_plan_checker.auto_submit_for(business_date)
+
+    def pending_auto_submit_dates(self) -> list[str]:
+        """返回需要在应用启动时恢复确认的业务日期。"""
+        return work_plan_checker.pending_auto_submit_dates()
+
+    def resume_pending_work_plans(self) -> str:
+        """只读恢复持久化的工作计划发送状态。"""
+        return work_plan_checker.resume_pending_auto_submits()
+
+    def notify_auto_submit_skipped(self, business_date: str, reason: str) -> None:
+        """通知指定日期的自动提交任务未执行。"""
+        work_plan_checker.notify_auto_submit_skipped(business_date, reason)
 
     @staticmethod
     def _cleanup_eml_files() -> int:

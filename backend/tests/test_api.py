@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -5,6 +6,7 @@ from sqlalchemy.exc import OperationalError
 
 from app.api.dependencies import get_repository
 from app.main import app
+from app.services.email_sender import PartialDeliveryError
 
 
 class FakeRepository:
@@ -122,7 +124,7 @@ def test_send_email_delegates_to_sender() -> None:
 
     with (
         patch("app.api.v1.emails.email_sender.is_configured", return_value=True),
-        patch("app.api.v1.emails.email_sender.send", return_value="250 OK") as mock,
+        patch("app.api.v1.emails.email_sender.send", return_value=None) as mock,
     ):
         response = client.post(
             "/api/v1/emails/send",
@@ -142,6 +144,68 @@ def test_send_email_delegates_to_sender() -> None:
         content="正文",
         html=None,
     )
+
+
+def test_send_email_reports_partial_delivery() -> None:
+    client = TestClient(app)
+    login(client)
+    error = PartialDeliveryError(
+        {"boss@example.com": (550, b"rejected")},
+        ["boss@example.com", "accepted@example.com"],
+    )
+
+    with (
+        patch("app.api.v1.emails.email_sender.is_configured", return_value=True),
+        patch("app.api.v1.emails.email_sender.send", side_effect=error),
+    ):
+        response = client.post(
+            "/api/v1/emails/send",
+            json={
+                "to": "boss@example.com",
+                "cc": ["accepted@example.com"],
+                "subject": "年度报告",
+                "content": "正文",
+            },
+        )
+
+    assert response.status_code == 207
+    assert response.json() == {
+        "success": False,
+        "partial": True,
+        "to": "boss@example.com",
+        "subject": "年度报告",
+        "accepted_recipients": ["accepted@example.com"],
+        "refused_recipients": ["boss@example.com"],
+        "error": "部分收件人被邮件服务器拒绝",
+    }
+
+
+def test_compose_config_uses_work_plan_subject() -> None:
+    client = TestClient(app)
+    login(client)
+
+    with patch(
+        "app.api.v1.emails.get_settings",
+        return_value=SimpleNamespace(work_plan_subject="自定义计划"),
+    ):
+        response = client.get("/api/v1/emails/compose-config")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "recipient": "working@cet-electric.com",
+        "plan_subject": "自定义计划",
+    }
+
+
+def test_status_uses_sender_configuration_fallback() -> None:
+    client = TestClient(app)
+    login(client)
+
+    with patch("app.api.v1.system.email_sender.is_configured", return_value=True):
+        response = client.get("/api/v1/status")
+
+    assert response.status_code == 200
+    assert response.json()["stats"]["smtp_configured"] is True
 
 
 def test_send_email_maps_sender_failure_to_502() -> None:

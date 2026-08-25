@@ -6,14 +6,36 @@
 
 import logging
 import smtplib
+import ssl
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Optional
+from typing import Callable, Optional
 
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
+
+
+class DeliveryFailedError(RuntimeError):
+    """SMTP 在明确未接受邮件的阶段失败。"""
+
+
+class DeliveryUncertainError(RuntimeError):
+    """SMTP 发送已开始，但无法确认服务器最终是否接受邮件。"""
+
+
+class PartialDeliveryError(RuntimeError):
+    """SMTP 接受了部分收件人，但拒绝了其他收件人。"""
+
+    def __init__(
+        self,
+        refused: dict[str, tuple[int, bytes]],
+        recipients: list[str],
+    ) -> None:
+        self.refused_recipients = list(refused)
+        self.accepted_recipients = [address for address in recipients if address not in refused]
+        super().__init__(f"部分收件人被拒绝: {', '.join(self.refused_recipients)}")
 
 
 class EmailSender:
@@ -39,20 +61,9 @@ class EmailSender:
         content: str,
         html: Optional[str] = None,
         cc: Optional[list[str]] = None,
-    ) -> str:
-        """
-        发送一封邮件
-
-        Args:
-            to_addr: 收件人地址
-            subject: 邮件主题
-            content: 邮件正文（纯文本）
-            html: 可选 HTML 正文，提供时作为替代内容发送
-            cc: 可选抄送地址列表
-
-        Returns:
-            SMTP 服务器返回的响应字符串
-        """
+        before_send: Optional[Callable[[], None]] = None,
+    ) -> None:
+        """发送邮件，并区分明确失败、投递结果未知和部分拒收。"""
         if not self.is_configured():
             raise RuntimeError(
                 "SMTP 未配置，请在 .env 中设置 SMTP_HOST/SMTP_USERNAME/SMTP_PASSWORD"
@@ -60,22 +71,49 @@ class EmailSender:
 
         recipients = [to_addr, *(cc or [])]
         message = self._build_message(to_addr, subject, content, html, cc)
-        with self._connect() as server:
-            response = server.sendmail(
-                self.from_addr, recipients, message.as_string()
-            )
+        try:
+            server = self._connect()
+        except Exception as error:
+            raise DeliveryFailedError(str(error)) from error
+
+        if before_send:
+            try:
+                before_send()
+            except Exception:
+                try:
+                    server.close()
+                except Exception:
+                    pass
+                raise
+
+        try:
+            with server:
+                refused = server.sendmail(self.from_addr, recipients, message.as_string())
+        except (smtplib.SMTPRecipientsRefused, smtplib.SMTPSenderRefused) as error:
+            raise DeliveryFailedError(str(error)) from error
+        except (smtplib.SMTPHeloError, smtplib.SMTPDataError) as error:
+            raise DeliveryFailedError(str(error)) from error
+        except Exception as error:
+            raise DeliveryUncertainError(str(error)) from error
+
+        if refused:
+            logger.warning("邮件部分发送失败: %s，拒绝地址: %s", subject, list(refused))
+            raise PartialDeliveryError(refused, recipients)
         logger.info("邮件发送成功: %s -> %s", subject, recipients)
-        return response
 
     def _connect(self) -> smtplib.SMTP:
-        """建立 SMTP 连接并登录（SSL 或 STARTTLS）"""
+        """建立验证服务器证书的 SMTP 连接并登录。"""
+        context = ssl.create_default_context()
         if self.use_ssl:
             server: smtplib.SMTP = smtplib.SMTP_SSL(
-                self.host, self.port, timeout=30
+                self.host,
+                self.port,
+                timeout=30,
+                context=context,
             )
         else:
             server = smtplib.SMTP(self.host, self.port, timeout=30)
-            server.starttls()
+            server.starttls(context=context)
         server.login(self.username, self.password)
         return server
 

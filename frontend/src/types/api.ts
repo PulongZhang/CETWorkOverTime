@@ -53,7 +53,7 @@ export interface SystemStatus {
   }
   scheduler: {
     enabled: boolean
-    schedule_time: string
+    schedule_times: string[]
     next_run: string | null
     last_run: string | null
     last_result: string | null

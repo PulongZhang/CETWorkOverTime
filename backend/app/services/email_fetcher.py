@@ -64,12 +64,14 @@ class EmailFetcher:
                 self.connection = imaplib.IMAP4_SSL(
                     config.IMAP_SERVER,
                     config.IMAP_PORT,
-                    ssl_context=context
+                    ssl_context=context,
+                    timeout=30,
                 )
             else:
                 self.connection = imaplib.IMAP4(
                     config.IMAP_SERVER,
-                    config.IMAP_PORT
+                    config.IMAP_PORT,
+                    timeout=30,
                 )
 
             # 登录

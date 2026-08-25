@@ -5,53 +5,107 @@ import { api, getErrorMessage } from '../api/client'
 
 type TemplateKey = 'plan' | 'summary'
 
-const RECIPIENT = 'working@cet-electric.com'
-const DEFAULT_START = '17:45'
-const DEFAULT_END = '19:45'
-
-function today() {
-  const now = new Date()
-  const month = `${now.getMonth() + 1}`.padStart(2, '0')
-  const day = `${now.getDate()}`.padStart(2, '0')
-  return `${now.getFullYear()}-${month}-${day}`
+interface ComposeConfig {
+  recipient: string
+  plan_subject: string
 }
 
-const to = ref(RECIPIENT)
+interface SendEmailResponse {
+  success: boolean
+  to: string
+  subject: string
+  error?: string
+}
+
+const DEFAULT_START = '17:45'
+const DEFAULT_END = '19:45'
+const beijingDateFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Asia/Shanghai',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+})
+
+function todayInBeijing() {
+  const parts = beijingDateFormatter.formatToParts(new Date())
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+  return `${values.year}-${values.month}-${values.day}`
+}
+
+const to = ref('')
 const cc = ref('')
 const subject = ref('')
 const content = ref('')
+const planSubject = ref('')
+const configLoaded = ref(false)
 const sending = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+let activeTemplate: TemplateKey | null = null
+let generatedDate = ''
 
 function fillTemplate(key: TemplateKey) {
-  const date = today()
+  generatedDate = todayInBeijing()
   if (key === 'plan') {
-    subject.value = `工作计划[${date}]`
-    content.value = `工作计划[${date}]\n1、\n2、\n3、`
+    subject.value = `${planSubject.value}[${generatedDate}]`
+    content.value = `${planSubject.value}[${generatedDate}]\n1、\n2、\n3、`
   } else {
-    subject.value = `工作总结[${date}]`
+    subject.value = `工作总结[${generatedDate}]`
     content.value =
-      `工作总结[${date}]\n1、\n2、\n3、\n\n[勤奋时间][${DEFAULT_START}][${DEFAULT_END}].`
+      `工作总结[${generatedDate}]\n1、\n2、\n3、\n\n[勤奋时间][${DEFAULT_START}][${DEFAULT_END}].`
+  }
+  activeTemplate = key
+}
+
+function refreshTemplateDate() {
+  if (!activeTemplate) return
+  const currentDate = todayInBeijing()
+  if (currentDate === generatedDate) return
+  const oldMarker = `[${generatedDate}]`
+  const newMarker = `[${currentDate}]`
+  subject.value = subject.value.replace(oldMarker, newMarker)
+  content.value = content.value.replace(oldMarker, newMarker)
+  generatedDate = currentDate
+}
+
+async function loadComposeConfig() {
+  try {
+    const { data } = await api.get<ComposeConfig>('/emails/compose-config')
+    to.value = data.recipient
+    planSubject.value = data.plan_subject
+    configLoaded.value = true
+    fillTemplate('plan')
+  } catch (error) {
+    errorMessage.value = getErrorMessage(error)
   }
 }
 
 async function send() {
   errorMessage.value = ''
   successMessage.value = ''
+  if (!configLoaded.value) {
+    errorMessage.value = '邮件配置尚未加载，请稍后重试'
+    return
+  }
+  refreshTemplateDate()
+
   sending.value = true
   try {
     const ccList = cc.value
       .split(/[,;，；\s]+/)
       .map((item) => item.trim())
       .filter(Boolean)
-    await api.post('/emails/send', {
+    const { data } = await api.post<SendEmailResponse>('/emails/send', {
       to: to.value.trim(),
       cc: ccList,
       subject: subject.value,
       content: content.value,
     })
-    successMessage.value = `已发送至 ${to.value.trim()}`
+    if (!data.success) {
+      errorMessage.value = data.error ?? '邮件仅部分发送成功，请检查收件人地址'
+      return
+    }
+    successMessage.value = `已发送至 ${data.to}`
   } catch (error) {
     errorMessage.value = getErrorMessage(error)
   } finally {
@@ -59,7 +113,7 @@ async function send() {
   }
 }
 
-onMounted(() => fillTemplate('plan'))
+onMounted(loadComposeConfig)
 </script>
 
 <template>
@@ -75,8 +129,8 @@ onMounted(() => fillTemplate('plan'))
     <form class="compose-card" @submit.prevent="send">
       <div class="template-actions" role="group" aria-label="填入模板">
         <span class="template-label">模板</span>
-        <el-button @click="fillTemplate('plan')">每日计划</el-button>
-        <el-button @click="fillTemplate('summary')">每日总结</el-button>
+        <el-button :disabled="!configLoaded" @click="fillTemplate('plan')">每日计划</el-button>
+        <el-button :disabled="!configLoaded" @click="fillTemplate('summary')">每日总结</el-button>
       </div>
 
       <div class="compose-row">
@@ -105,7 +159,14 @@ onMounted(() => fillTemplate('plan'))
       <p v-if="successMessage" class="inline-success" role="status">{{ successMessage }}</p>
 
       <div class="compose-actions">
-        <el-button type="primary" native-type="submit" :loading="sending">发送</el-button>
+        <el-button
+          type="primary"
+          native-type="submit"
+          :loading="sending"
+          :disabled="!configLoaded"
+        >
+          发送
+        </el-button>
       </div>
     </form>
   </section>
