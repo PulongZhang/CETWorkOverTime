@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     imap_username: str = Field(default="", alias="EMAIL_USERNAME")
     imap_password: str = Field(default="", alias="EMAIL_PASSWORD")
     imap_mailbox: str = Field(default="&XeVPXGXlX9c-", alias="IMAP_MAILBOX")
+    work_plan_mailbox: str = Field(default="", alias="WORK_PLAN_MAILBOX")
     imap_search_subject: str = Field(default="--工作日志", alias="IMAP_SEARCH_SUBJECT")
     imap_search_days: int = Field(default=365, alias="IMAP_SEARCH_DAYS")
 

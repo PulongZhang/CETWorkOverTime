@@ -186,7 +186,10 @@ class WorkPlanChecker:
         if self.connection is None:
             raise RuntimeError("IMAP 尚未连接")
 
-        mailbox = config.IMAP_MAILBOX
+        mailbox = config.WORK_PLAN_MAILBOX
+        if not mailbox:
+            raise RuntimeError("未配置工作计划邮箱文件夹 WORK_PLAN_MAILBOX")
+
         status, _ = self.connection.select(mailbox, readonly=True)
         if status != "OK":
             raise RuntimeError(f"无法打开邮箱文件夹 {mailbox}")

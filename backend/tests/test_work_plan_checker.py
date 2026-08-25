@@ -18,6 +18,7 @@ from app.services.work_plan_checker import (
 PLAN_SUBJECT = "工作计划"
 PLAN_DATE = "2026-08-25"
 PLAN_TITLE = f"张蒲龙--{PLAN_SUBJECT}[{PLAN_DATE}]--[提交成功]"
+WORK_PLAN_MAILBOX = "&work-plan-"
 
 
 @pytest.fixture(autouse=True)
@@ -123,10 +124,14 @@ def test_mailbox_command_failure_becomes_check_failure() -> None:
     checker._connect = MagicMock(return_value=True)  # type: ignore[method-assign]
     checker._disconnect = MagicMock()  # type: ignore[method-assign]
 
-    result = checker.check_for_date(PLAN_DATE)
+    with patch(
+        "app.services.work_plan_checker.config.WORK_PLAN_MAILBOX", WORK_PLAN_MAILBOX
+    ):
+        result = checker.check_for_date(PLAN_DATE)
 
     assert result["status"] == WorkPlanStatus.CHECK_FAILED
     assert result["submitted"] is False
+    connection.select.assert_called_once_with(WORK_PLAN_MAILBOX, readonly=True)
 
 
 def test_connect_sets_finite_timeout() -> None:
@@ -460,6 +465,33 @@ def test_recovery_polls_pending_state_and_deduplicates_timeout_notification() ->
     assert "待确认" in send.call_args.kwargs["subject"]
 
 
+def test_count_matching_emails_uses_work_plan_mailbox() -> None:
+    checker = WorkPlanChecker()
+    connection = MagicMock()
+    connection.select.return_value = ("OK", [b"1"])
+    connection.uid.return_value = ("OK", [b""])
+    checker.connection = connection
+
+    with patch(
+        "app.services.work_plan_checker.config.WORK_PLAN_MAILBOX", WORK_PLAN_MAILBOX
+    ):
+        assert checker._count_matching_emails(PLAN_DATE) == 0
+
+    connection.select.assert_called_once_with(WORK_PLAN_MAILBOX, readonly=True)
+
+
+def test_count_matching_emails_requires_work_plan_mailbox() -> None:
+    checker = WorkPlanChecker()
+    checker.connection = MagicMock()
+
+    with (
+        patch("app.services.work_plan_checker.config.WORK_PLAN_MAILBOX", ""),
+        patch("app.services.work_plan_checker.config.IMAP_MAILBOX", "&work-summary-"),
+        pytest.raises(RuntimeError, match="WORK_PLAN_MAILBOX"),
+    ):
+        checker._count_matching_emails(PLAN_DATE)
+
+
 def test_count_matching_emails_raises_on_fetch_failure() -> None:
     checker = WorkPlanChecker()
     connection = MagicMock()
@@ -467,5 +499,10 @@ def test_count_matching_emails_raises_on_fetch_failure() -> None:
     connection.uid.side_effect = [("OK", [b"1"]), ("NO", [])]
     checker.connection = connection
 
-    with pytest.raises(RuntimeError, match="获取邮件主题失败"):
+    with (
+        patch(
+            "app.services.work_plan_checker.config.WORK_PLAN_MAILBOX", WORK_PLAN_MAILBOX
+        ),
+        pytest.raises(RuntimeError, match="获取邮件主题失败"),
+    ):
         checker._count_matching_emails(PLAN_DATE)

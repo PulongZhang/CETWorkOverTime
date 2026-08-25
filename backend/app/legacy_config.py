@@ -38,6 +38,7 @@ IMAP_USE_SSL = settings.imap_use_ssl
 IMAP_USERNAME = settings.imap_username
 IMAP_PASSWORD = settings.imap_password
 IMAP_MAILBOX = settings.imap_mailbox
+WORK_PLAN_MAILBOX = settings.work_plan_mailbox
 IMAP_SEARCH_SUBJECT = settings.imap_search_subject
 IMAP_SEARCH_DAYS = settings.imap_search_days
 CLEANUP_EML_AFTER_SYNC = settings.cleanup_eml_after_sync
