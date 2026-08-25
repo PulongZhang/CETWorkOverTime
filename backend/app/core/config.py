@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     db_charset: str = Field(default="utf8mb4", alias="DB_CHARSET")
 
     diligence_target_hours: float = Field(default=36, alias="DILIGENCE_TARGET_HOURS")
-    schedule_interval_hours: int = Field(default=24, alias="SCHEDULE_INTERVAL_HOURS")
+    schedule_time: str = Field(default="21:00", alias="SCHEDULE_TIME")
     cleanup_eml_after_sync: bool = Field(default=True, alias="CLEANUP_EML_AFTER_SYNC")
 
     def model_post_init(self, __context: object) -> None:

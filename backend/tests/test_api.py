@@ -179,3 +179,29 @@ def test_database_errors_return_service_unavailable() -> None:
             assert response.json() == {"detail": "数据库暂时不可用，请稍后重试"}
     finally:
         app.dependency_overrides.clear()
+
+
+def test_scheduler_next_run_rolls_to_next_day_after_schedule_time() -> None:
+    from datetime import datetime, timezone
+
+    from app.scheduler import next_run_at
+
+    now = datetime(2026, 8, 25, 13, 30, tzinfo=timezone.utc)  # 北京时间 21:30，已过 21:00
+    target = next_run_at(now, "21:00")
+
+    assert target.hour == 21
+    assert target.minute == 0
+    assert target.date().day == now.date().day + 1
+
+
+def test_scheduler_next_run_is_today_before_schedule_time() -> None:
+    from datetime import datetime, timezone
+
+    from app.scheduler import next_run_at
+
+    now = datetime(2026, 8, 25, 10, 0, tzinfo=timezone.utc)  # 北京时间 18:00，未到 21:00
+    target = next_run_at(now, "21:00")
+
+    assert target.hour == 21
+    assert target.minute == 0
+    assert target.date().day == now.date().day
