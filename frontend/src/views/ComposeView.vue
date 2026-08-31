@@ -117,53 +117,64 @@ onMounted(loadComposeConfig)
 </script>
 
 <template>
-  <section class="compose-page">
-    <div class="page-heading">
+  <section class="space-y-6 max-w-4xl mx-auto h-full flex flex-col">
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
       <div>
-        <span class="eyebrow">COMPOSE</span>
-        <h1>发邮件</h1>
-        <p>使用模板快速发送每日工作计划与工作总结。</p>
+        <span class="text-blue-500 font-bold text-xs tracking-widest uppercase">Compose</span>
+        <h1 class="text-3xl font-bold mt-1 mb-2 text-[var(--text-primary)]">发邮件</h1>
+        <p class="text-[var(--text-secondary)] text-sm max-w-2xl">使用模板快速发送每日工作计划与工作总结。</p>
       </div>
     </div>
 
-    <form class="compose-card" @submit.prevent="send">
-      <div class="template-actions" role="group" aria-label="填入模板">
-        <span class="template-label">模板</span>
-        <el-button :disabled="!configLoaded" @click="fillTemplate('plan')">每日计划</el-button>
-        <el-button :disabled="!configLoaded" @click="fillTemplate('summary')">每日总结</el-button>
+    <form class="glass rounded-2xl border border-[var(--border-color)] shadow-sm p-6 sm:p-8 flex flex-col gap-6" @submit.prevent="send">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-[var(--border-color)] gap-4">
+        <span class="text-sm font-bold text-[var(--text-primary)]">填入模板</span>
+        <div class="flex items-center gap-3 w-full sm:w-auto">
+          <el-button :disabled="!configLoaded" @click="fillTemplate('plan')" class="flex-1 sm:flex-none !rounded-xl">每日计划</el-button>
+          <el-button :disabled="!configLoaded" @click="fillTemplate('summary')" class="flex-1 sm:flex-none !rounded-xl">每日总结</el-button>
+        </div>
       </div>
 
-      <div class="compose-row">
-        <label for="compose-to">收件人</label>
-        <el-input id="compose-to" v-model="to" placeholder="收件人邮箱" />
-      </div>
-      <div class="compose-row">
-        <label for="compose-cc">抄送</label>
-        <el-input id="compose-cc" v-model="cc" placeholder="多个地址用逗号分隔，可留空" />
-      </div>
-      <div class="compose-row">
-        <label for="compose-subject">主题</label>
-        <el-input id="compose-subject" v-model="subject" placeholder="邮件主题" />
+      <div class="space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
+          <label for="compose-to" class="w-20 text-sm font-semibold text-[var(--text-secondary)] shrink-0">收件人</label>
+          <el-input id="compose-to" v-model="to" placeholder="收件人邮箱" size="large" class="flex-1" />
+        </div>
+        
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
+          <label for="compose-cc" class="w-20 text-sm font-semibold text-[var(--text-secondary)] shrink-0">抄送</label>
+          <el-input id="compose-cc" v-model="cc" placeholder="多个地址用逗号分隔，可留空" size="large" class="flex-1" />
+        </div>
+        
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
+          <label for="compose-subject" class="w-20 text-sm font-semibold text-[var(--text-secondary)] shrink-0">主题</label>
+          <el-input id="compose-subject" v-model="subject" placeholder="邮件主题" size="large" class="flex-1" />
+        </div>
       </div>
 
-      <label class="field-label" for="compose-content">正文</label>
-      <textarea
-        id="compose-content"
-        v-model="content"
-        rows="12"
-        spellcheck="false"
-        placeholder="邮件正文"
-      />
+      <div class="flex flex-col gap-2 mt-2">
+        <label for="compose-content" class="text-sm font-semibold text-[var(--text-secondary)]">正文</label>
+        <textarea
+          id="compose-content"
+          v-model="content"
+          rows="12"
+          spellcheck="false"
+          placeholder="邮件正文"
+          class="w-full p-4 rounded-xl border border-[var(--border-color)] bg-[var(--surface-color)]/50 text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all resize-y leading-relaxed font-mono"
+        />
+      </div>
 
-      <p v-if="errorMessage" class="inline-error" role="alert">{{ errorMessage }}</p>
-      <p v-if="successMessage" class="inline-success" role="status">{{ successMessage }}</p>
+      <p v-if="errorMessage" class="text-red-500 text-sm font-medium" role="alert">{{ errorMessage }}</p>
+      <p v-if="successMessage" class="text-green-500 text-sm font-medium" role="status">{{ successMessage }}</p>
 
-      <div class="compose-actions">
+      <div class="flex justify-end pt-4 border-t border-[var(--border-color)] mt-2">
         <el-button
           type="primary"
           native-type="submit"
           :loading="sending"
           :disabled="!configLoaded"
+          size="large"
+          class="!rounded-xl !px-8 shadow-sm shadow-blue-500/20"
         >
           发送
         </el-button>
@@ -171,106 +182,3 @@ onMounted(loadComposeConfig)
     </form>
   </section>
 </template>
-
-<style scoped>
-.template-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.compose-page {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.compose-page .page-heading {
-  width: 100%;
-  max-width: 760px;
-}
-
-.compose-card {
-  display: grid;
-  gap: 14px;
-  width: 100%;
-  max-width: 760px;
-  padding: 24px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  background: var(--surface-1);
-}
-
-.template-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.template-label {
-  margin-right: auto;
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.compose-row {
-  display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-}
-
-.compose-row > label {
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.compose-card textarea {
-  padding: 14px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  background: var(--app-bg);
-  font: inherit;
-  line-height: 1.65;
-  resize: vertical;
-}
-
-.compose-card textarea:focus-visible {
-  outline: 2px solid var(--action-primary);
-  outline-offset: -1px;
-}
-
-.inline-success {
-  margin: 0;
-  color: var(--status-success);
-  font-size: 13px;
-}
-
-.compose-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-@media (max-width: 680px) {
-  .template-actions {
-    flex-wrap: wrap;
-  }
-
-  .template-label {
-    width: 100%;
-    margin: 0 0 2px;
-  }
-
-  .template-actions .el-button {
-    flex: 1;
-  }
-
-  .compose-row {
-    grid-template-columns: 1fr;
-  }
-}
-</style>
