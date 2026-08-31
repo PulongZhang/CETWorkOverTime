@@ -1,3 +1,4 @@
+from datetime import date
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -7,6 +8,7 @@ from sqlalchemy.exc import OperationalError
 from app.api.dependencies import get_repository
 from app.main import app
 from app.services.email_sender import PartialDeliveryError
+from app.services.work_calendar import work_calendar
 
 
 class FakeRepository:
@@ -206,6 +208,60 @@ def test_status_uses_sender_configuration_fallback() -> None:
 
     assert response.status_code == 200
     assert response.json()["stats"]["smtp_configured"] is True
+
+
+def test_work_calendar_api_lists_adds_and_removes_leave_dates() -> None:
+    client = TestClient(app)
+    login(client)
+    snapshot = {
+        "holidays": ["2026-10-01"],
+        "makeup_workdays": ["2026-10-10"],
+        "leave_dates": [],
+        "today": {
+            "date": "2026-08-31",
+            "required": True,
+            "kind": "workday",
+            "reason": "工作日",
+        },
+    }
+
+    with (
+        patch.object(work_calendar, "snapshot", return_value=snapshot),
+        patch.object(work_calendar, "add_leave_range") as add_leave,
+        patch.object(work_calendar, "remove_leave") as remove_leave,
+    ):
+        listed = client.get("/api/v1/work-calendar")
+        added = client.post(
+            "/api/v1/work-calendar/leaves",
+            json={"start_date": "2026-09-01", "end_date": "2026-09-02"},
+        )
+        removed = client.delete("/api/v1/work-calendar/leaves/2026-09-01")
+
+    assert listed.status_code == 200
+    assert listed.json() == snapshot
+    assert added.status_code == 200
+    assert removed.status_code == 200
+    add_leave.assert_called_once()
+    assert add_leave.call_args.args == (date(2026, 9, 1), date(2026, 9, 2))
+    remove_leave.assert_called_once_with(date(2026, 9, 1))
+
+
+def test_work_calendar_api_rejects_reversed_leave_range() -> None:
+    client = TestClient(app)
+    login(client)
+
+    with patch.object(
+        work_calendar,
+        "add_leave_range",
+        side_effect=ValueError("请假结束日期不能早于开始日期"),
+    ):
+        response = client.post(
+            "/api/v1/work-calendar/leaves",
+            json={"start_date": "2026-09-02", "end_date": "2026-09-01"},
+        )
+
+    assert response.status_code == 400
+    assert "结束日期" in response.json()["detail"]
 
 
 def test_send_email_maps_sender_failure_to_502() -> None:

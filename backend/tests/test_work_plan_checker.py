@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from email.header import Header
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -99,6 +100,40 @@ def test_check_today_not_submitted_sends_reminder() -> None:
     assert result["matched"] == 0
     assert "未提交" in result["message"]
     mock.assert_called_once_with(result["date"])
+
+
+def test_weekend_is_not_checked_or_reminded() -> None:
+    checker = WorkPlanChecker()
+    checker.remind_enabled = True
+    checker.remind_to = "me@example.com"
+
+    with (
+        patch.object(checker, "_connect") as connect,
+        patch.object(checker, "_send_reminder") as reminder,
+    ):
+        result = checker.check_for_date("2026-08-29")
+
+    assert result["status"] == WorkPlanStatus.NOT_REQUIRED
+    assert result["required"] is False
+    assert "周末" in result["message"]
+    connect.assert_not_called()
+    reminder.assert_not_called()
+
+
+def test_leave_date_is_not_auto_submitted() -> None:
+    checker = WorkPlanChecker()
+    settings = get_settings()
+    calendar_path = settings.output_dir / "work_calendar.json"
+    calendar_path.write_text(
+        '{"holidays": [], "makeup_workdays": [], "leave_dates": ["2026-08-25"]}',
+        encoding="utf-8",
+    )
+
+    with patch("app.services.email_sender.sender.send") as send:
+        result = checker.auto_submit_for(PLAN_DATE)
+
+    assert "个人请假" in result
+    send.assert_not_called()
 
 
 def test_check_failure_is_not_reported_as_missing_or_reminded() -> None:
@@ -326,7 +361,11 @@ def test_uncertain_smtp_failure_is_not_marked_as_definite_failure() -> None:
     with patch(
         "app.services.email_sender.sender.send",
         side_effect=send_side_effect,
-    ) as send:
+    ) as send, patch.object(
+        checker,
+        "_auto_submit_deadline",
+        return_value=datetime.now().astimezone() + timedelta(minutes=1),
+    ):
         result = checker.auto_submit_for(PLAN_DATE)
 
     assert "结果无法确认" in result
@@ -431,6 +470,17 @@ def test_notify_skipped_is_persisted_and_sent_only_once() -> None:
     mock_send.assert_called_once()
     assert "未执行" in mock_send.call_args.kwargs["subject"]
     assert "已有任务在运行中" in mock_send.call_args.kwargs["content"]
+
+
+def test_weekend_does_not_create_skipped_state_or_notification() -> None:
+    checker = WorkPlanChecker()
+    checker.remind_to = "me@example.com"
+
+    with patch("app.services.email_sender.sender.send") as send:
+        checker.notify_auto_submit_skipped("2026-08-29", "服务启动过晚")
+
+    assert checker._get_auto_submit_state("2026-08-29") is None
+    send.assert_not_called()
 
 
 def test_skipped_notification_does_not_overwrite_failed_state() -> None:

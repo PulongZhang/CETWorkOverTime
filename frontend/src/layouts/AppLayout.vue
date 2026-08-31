@@ -68,6 +68,13 @@ onBeforeUnmount(() => window.clearInterval(timer))
           </svg>
           发邮件
         </RouterLink>
+        <RouterLink to="/calendar">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M5 6.5h14v13H5zM8 3.5v5M16 3.5v5M5 10h14" />
+            <path d="M9 14h.01M12 14h.01M15 14h.01M9 17h.01M12 17h.01" />
+          </svg>
+          请假
+        </RouterLink>
       </nav>
       <div class="header-actions">
         <span class="runtime-status" :class="{ busy: status?.task.running }" role="status">

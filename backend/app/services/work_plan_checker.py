@@ -18,6 +18,7 @@ from enum import StrEnum
 
 from app import legacy_config as config
 from app.core.config import get_settings
+from app.services.work_calendar import work_calendar
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ class AutoSubmitDeadlineError(RuntimeError):
 class WorkPlanStatus(StrEnum):
     SUBMITTED = "submitted"
     MISSING = "missing"
+    NOT_REQUIRED = "not_required"
     CHECK_FAILED = "check_failed"
 
 
@@ -95,8 +97,20 @@ class WorkPlanChecker:
         return self.check_for_date(beijing_today(), send_reminder=send_reminder)
 
     def check_for_date(self, date_str: str, *, send_reminder: bool = True) -> dict:
-        """检查指定业务日期，并返回明确的三态结果。"""
+        """检查指定业务日期；非工作日不连接邮箱、不发送提醒。"""
         try:
+            decision = work_calendar.decision(date_str)
+            if not decision.required:
+                message = f"{date_str} 无需提交工作计划：{decision.reason}"
+                logger.info("工作计划检查已跳过: %s", message)
+                return {
+                    "status": WorkPlanStatus.NOT_REQUIRED,
+                    "submitted": False,
+                    "required": False,
+                    "date": date_str,
+                    "matched": 0,
+                    "message": message,
+                }
             if not self._connect():
                 return self._check_failed(date_str, "无法连接邮箱")
             try:
@@ -126,6 +140,7 @@ class WorkPlanChecker:
         return {
             "status": status,
             "submitted": status == WorkPlanStatus.SUBMITTED,
+            "required": True,
             "date": date_str,
             "matched": matched,
             "message": message,
@@ -136,6 +151,7 @@ class WorkPlanChecker:
         return {
             "status": WorkPlanStatus.CHECK_FAILED,
             "submitted": False,
+            "required": True,
             "date": date_str,
             "matched": 0,
             "message": f"{date_str} 工作计划检查失败：{reason}",
@@ -287,6 +303,18 @@ class WorkPlanChecker:
         """只在完整检查确认缺失时，自动提交指定业务日期的计划。"""
         from app.services.email_sender import DeliveryUncertainError
         from app.services.email_sender import sender as email_sender
+
+        try:
+            decision = work_calendar.decision(date_str)
+        except (RuntimeError, ValueError) as error:
+            self._notify_auto_submit(
+                date_str,
+                AutoSubmitOutcome.CHECK_FAILED,
+                detail=f"工作日历读取失败：{error}",
+            )
+            return f"{date_str} 工作日历状态无法确认，未执行自动提交：{error}"
+        if not decision.required:
+            return f"{date_str} 无需提交工作计划：{decision.reason}"
 
         try:
             state = self._get_auto_submit_state(date_str)
@@ -447,6 +475,8 @@ class WorkPlanChecker:
     def notify_auto_submit_skipped(self, date_str: str, reason: str) -> None:
         """记录并通知指定日期的自动提交任务未执行。"""
         try:
+            if not work_calendar.decision(date_str).required:
+                return
             existing = self._get_auto_submit_state(date_str)
             if existing is not None:
                 return

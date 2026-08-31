@@ -11,6 +11,7 @@
 - 年度/月度勤奋时间统计和每日工作明细
 - 数据库动态生成 Markdown/HTML 月度报告
 - 单实例后台任务与定时抓取
+- 周末、法定节假日、调休补班及个人请假的工作计划跳过规则
 - Docker Compose 单容器部署
 
 ## 架构
@@ -111,6 +112,20 @@ pnpm --dir frontend dev
 ```
 
 Vite 会将 `/api` 代理到本地 FastAPI。
+
+## 工作日历
+
+工作计划检查会自动跳过普通周末、法定节假日和个人请假，调休补班日仍正常检查。请假日期可在前端“请假”页面添加或移除，不使用数据库。
+
+配置持久化在 `OUTPUT_DIR/work_calendar.json`。文件首次生成时使用内置的 2026 年国务院办公厅节假日安排；后续年度可直接更新其中的 `holidays` 和 `makeup_workdays` 数组，个人请假保存在 `leave_dates` 数组。Docker Compose 已持久化整个 `output` 目录。
+
+```json
+{
+  "holidays": ["2026-10-01"],
+  "makeup_workdays": ["2026-10-10"],
+  "leave_dates": ["2026-09-07"]
+}
+```
 
 ## 验证
 

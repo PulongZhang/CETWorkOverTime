@@ -60,3 +60,19 @@ export interface SystemStatus {
   }
   task: TaskStatus
 }
+
+export type WorkdayKind = 'workday' | 'weekend' | 'holiday' | 'makeup_workday' | 'leave'
+
+export interface WorkdayDecision {
+  date: string
+  required: boolean
+  kind: WorkdayKind
+  reason: string
+}
+
+export interface WorkCalendarResponse {
+  holidays: string[]
+  makeup_workdays: string[]
+  leave_dates: string[]
+  today: WorkdayDecision
+}
