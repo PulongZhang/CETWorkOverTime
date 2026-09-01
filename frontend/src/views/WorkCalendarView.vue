@@ -30,7 +30,7 @@ function getDayStatus(day: string) {
     return { kind: 'leave', label: '假', isWork: false, class: 'bg-orange-500 text-white' }
   }
   if (calendar.value.holidays.includes(day)) {
-    return { kind: 'holiday', label: '休', isWork: false, class: 'bg-green-500 text-white' }
+    return { kind: 'holiday', label: '休', isWork: false, class: 'bg-emerald-500 text-white' }
   }
   if (calendar.value.makeup_workdays.includes(day)) {
     return { kind: 'makeup', label: '班', isWork: true, class: 'bg-blue-500 text-white' }
@@ -39,7 +39,7 @@ function getDayStatus(day: string) {
   const dateObj = new Date(day)
   const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6
   if (isWeekend) {
-    return { kind: 'weekend', label: '休', isWork: false, class: 'text-gray-400 bg-gray-100 dark:bg-gray-800' }
+    return { kind: 'weekend', label: '休', isWork: false, class: 'text-slate-400 bg-slate-100 dark:bg-slate-800' }
   }
   
   return { kind: 'workday', label: '', isWork: true, class: '' }
@@ -110,15 +110,15 @@ onMounted(loadCalendar)
   <section class="space-y-6 h-full flex flex-col">
     <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
       <div>
-        <span class="text-blue-500 font-bold text-xs tracking-widest uppercase">Work Calendar</span>
+        <span class="eyebrow">Work Calendar</span>
         <h1 class="text-3xl font-bold mt-1 mb-2 text-[var(--text-primary)]">请假与日历</h1>
         <p class="text-[var(--text-secondary)] text-sm max-w-2xl">登记请假、查看法定节假日与调休补班，自动判断是否需要提交工作计划。</p>
       </div>
       <el-button :loading="loading" @click="loadCalendar" type="primary" plain class="!rounded-xl">刷新日历</el-button>
     </div>
 
-    <div v-if="errorMessage && !calendar" class="flex items-center gap-4 p-6 rounded-2xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400" role="alert">
-      <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-red-100 dark:bg-red-500/20 shrink-0">
+    <div v-if="errorMessage && !calendar" class="flex items-center gap-4 p-6 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400" role="alert">
+      <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-rose-100 dark:bg-rose-500/20 shrink-0">
         <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
       </div>
       <div class="flex-1">
@@ -129,10 +129,10 @@ onMounted(loadCalendar)
     </div>
 
     <template v-else>
-      <div v-if="calendar" class="glass rounded-2xl p-5 border border-[var(--border-color)] flex flex-col sm:flex-row items-start sm:items-center gap-4 shadow-sm transition-colors" :class="calendar.today.required ? 'bg-blue-50/50 dark:bg-blue-500/5' : 'bg-[var(--surface-color)]/50'">
+      <div v-if="calendar" class="glass rounded-2xl p-5 border border-[var(--border-color)] flex flex-col sm:flex-row items-start sm:items-center gap-4 transition-colors" :class="calendar.today.required ? 'bg-blue-50/50 dark:bg-blue-500/5' : 'bg-[var(--surface-color)]/50'">
         <div class="flex items-center gap-4 flex-1">
-          <div class="w-10 h-10 rounded-full flex items-center justify-center shadow-inner" :class="calendar.today.required ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-500' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'">
-            <div class="w-3 h-3 rounded-full" :class="calendar.today.required ? 'bg-blue-500 animate-pulse' : 'bg-gray-400'"></div>
+          <div class="w-10 h-10 rounded-full flex items-center justify-center shadow-inner" :class="calendar.today.required ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'">
+            <div class="w-3 h-3 rounded-full" :class="calendar.today.required ? 'bg-blue-500 animate-pulse' : 'bg-slate-400'"></div>
           </div>
           <div>
             <div class="text-xs font-semibold tracking-wide uppercase text-[var(--text-secondary)] mb-0.5">今天 · {{ calendar.today.date }}</div>
@@ -141,14 +141,14 @@ onMounted(loadCalendar)
             </strong>
           </div>
         </div>
-        <div class="px-4 py-1.5 rounded-full text-sm font-medium border" :class="calendar.today.required ? 'bg-blue-100 border-blue-200 text-blue-700 dark:bg-blue-500/20 dark:border-blue-500/30 dark:text-blue-400' : 'bg-gray-100 border-gray-200 text-gray-600 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400'">
+        <div class="px-4 py-1.5 rounded-full text-sm font-medium border" :class="calendar.today.required ? 'bg-blue-100 border-blue-200 text-blue-700 dark:bg-blue-500/20 dark:border-blue-500/30 dark:text-blue-400' : 'bg-slate-100 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'">
           {{ calendar.today.reason }}
         </div>
       </div>
 
       <div v-loading="loading" class="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
         <!-- Calendar View -->
-        <div class="flex-1 glass rounded-2xl border border-[var(--border-color)] shadow-sm overflow-hidden flex flex-col p-2">
+        <div class="flex-1 glass rounded-2xl border border-[var(--border-color)] overflow-hidden flex flex-col p-2">
           <el-calendar class="!bg-transparent">
             <template #date-cell="{ data }">
               <div class="w-full h-full flex flex-col p-1 group relative">
@@ -165,7 +165,7 @@ onMounted(loadCalendar)
                   {{ getDayStatus(data.day).label }}
                 </div>
                 
-                <div v-if="!getDayStatus(data.day).isWork" class="absolute inset-0 bg-gray-50/50 dark:bg-gray-900/30 pointer-events-none rounded-lg"></div>
+                <div v-if="!getDayStatus(data.day).isWork" class="absolute inset-0 bg-slate-50/50 dark:bg-slate-900/30 pointer-events-none rounded-lg"></div>
               </div>
             </template>
           </el-calendar>
@@ -173,7 +173,7 @@ onMounted(loadCalendar)
 
         <!-- Right Side: Add Leave & Rules -->
         <div class="w-full lg:w-96 flex flex-col gap-6 shrink-0">
-          <article class="glass rounded-2xl border border-[var(--border-color)] shadow-sm p-6 flex flex-col">
+          <article class="glass rounded-2xl border border-[var(--border-color)] p-6 flex flex-col">
             <header class="flex items-center justify-between mb-5">
               <div>
                 <span class="text-[10px] font-bold text-blue-500 tracking-widest uppercase">Personal Leave</span>
@@ -200,8 +200,8 @@ onMounted(loadCalendar)
               </el-button>
             </form>
 
-            <p v-if="errorMessage" class="text-red-500 text-sm font-medium mb-3" role="alert">{{ errorMessage }}</p>
-            <p v-if="successMessage" class="text-green-500 text-sm font-medium mb-3" role="status">{{ successMessage }}</p>
+            <p v-if="errorMessage" class="text-rose-500 text-sm font-medium mb-3" role="alert">{{ errorMessage }}</p>
+            <p v-if="successMessage" class="text-emerald-500 text-sm font-medium mb-3" role="status">{{ successMessage }}</p>
 
             <div class="flex-1 overflow-y-auto max-h-[300px] border-t border-[var(--border-color)] pt-3">
               <div v-if="leaveDates.length" class="space-y-2">
@@ -234,8 +234,8 @@ onMounted(loadCalendar)
             </div>
           </article>
 
-          <aside class="glass rounded-2xl border border-[var(--border-color)] shadow-sm p-6">
-            <span class="text-[10px] font-bold text-gray-500 tracking-widest uppercase">Rules</span>
+          <aside class="glass rounded-2xl border border-[var(--border-color)] p-6">
+            <span class="text-[10px] font-bold text-slate-500 tracking-widest uppercase">Rules</span>
             <h2 class="text-lg font-bold text-[var(--text-primary)] mt-0.5 mb-4">判定规则与图例</h2>
             <ul class="space-y-3">
               <li class="flex items-start gap-3">
@@ -253,7 +253,7 @@ onMounted(loadCalendar)
                 </div>
               </li>
               <li class="flex items-start gap-3">
-                <div class="mt-1 w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold bg-green-500 text-white shadow-sm shrink-0">休</div>
+                <div class="mt-1 w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold bg-emerald-500 text-white shadow-sm shrink-0">休</div>
                 <div>
                   <strong class="block text-sm text-[var(--text-primary)]">法定节假日 ({{ calendar?.holidays.length ?? 0 }}天)</strong>
                   <span class="text-xs text-[var(--text-secondary)]">非周末的节假日自动跳过计划。</span>
@@ -273,13 +273,26 @@ onMounted(loadCalendar)
   --el-calendar-border: var(--border-color);
   --el-calendar-header-border-bottom: var(--border-color);
   --el-calendar-selected-bg-color: transparent;
+  background-color: transparent;
 }
 .el-calendar-table td {
   border-bottom: 1px solid var(--border-color);
   border-right: 1px solid var(--border-color);
+  transition: background-color 0.2s ease;
+}
+.el-calendar-table td:hover {
+  background-color: color-mix(in srgb, var(--el-color-primary) 8%, transparent);
 }
 .el-calendar-table td.is-selected {
-  background-color: transparent;
+  background-color: color-mix(in srgb, var(--el-color-primary) 12%, transparent);
+}
+/* 今天用主色描边标出，比默认的纯文字提示更醒目 */
+.el-calendar-table td.is-today {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--el-color-primary) 55%, transparent);
+}
+.el-calendar-table:not(.is-range) td.prev,
+.el-calendar-table:not(.is-range) td.next {
+  opacity: 0.4;
 }
 .el-calendar-table .el-calendar-day {
   padding: 0;
@@ -292,5 +305,8 @@ onMounted(loadCalendar)
 .el-calendar-table thead th {
   padding: 12px 0;
   color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.04em;
 }
 </style>

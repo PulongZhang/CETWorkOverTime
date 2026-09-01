@@ -120,13 +120,13 @@ onMounted(loadComposeConfig)
   <section class="space-y-6 max-w-4xl mx-auto h-full flex flex-col">
     <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
       <div>
-        <span class="text-blue-500 font-bold text-xs tracking-widest uppercase">Compose</span>
+        <span class="eyebrow">Compose</span>
         <h1 class="text-3xl font-bold mt-1 mb-2 text-[var(--text-primary)]">发邮件</h1>
         <p class="text-[var(--text-secondary)] text-sm max-w-2xl">使用模板快速发送每日工作计划与工作总结。</p>
       </div>
     </div>
 
-    <form class="glass rounded-2xl border border-[var(--border-color)] shadow-sm p-6 sm:p-8 flex flex-col gap-6" @submit.prevent="send">
+    <form class="glass rounded-2xl border border-[var(--border-color)] p-6 sm:p-8 flex flex-col gap-6" @submit.prevent="send">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-[var(--border-color)] gap-4">
         <span class="text-sm font-bold text-[var(--text-primary)]">填入模板</span>
         <div class="flex items-center gap-3 w-full sm:w-auto">
@@ -164,8 +164,8 @@ onMounted(loadComposeConfig)
         />
       </div>
 
-      <p v-if="errorMessage" class="text-red-500 text-sm font-medium" role="alert">{{ errorMessage }}</p>
-      <p v-if="successMessage" class="text-green-500 text-sm font-medium" role="status">{{ successMessage }}</p>
+      <p v-if="errorMessage" class="text-rose-500 text-sm font-medium" role="alert">{{ errorMessage }}</p>
+      <p v-if="successMessage" class="text-emerald-500 text-sm font-medium" role="status">{{ successMessage }}</p>
 
       <div class="flex justify-end pt-4 border-t border-[var(--border-color)] mt-2">
         <el-button

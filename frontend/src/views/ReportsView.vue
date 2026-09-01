@@ -79,14 +79,14 @@ onBeforeUnmount(() => window.clearInterval(timer))
   <section class="space-y-6 h-full flex flex-col">
     <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
       <div>
-        <span class="text-blue-500 font-bold text-xs tracking-widest uppercase">Reports & Automation</span>
+        <span class="eyebrow">Reports & Automation</span>
         <h1 class="text-3xl font-bold mt-1 mb-2 text-[var(--text-primary)]">报告管理</h1>
         <p class="text-[var(--text-secondary)] text-sm max-w-2xl">抓取邮件、同步数据库并查看动态生成的月度报告。</p>
       </div>
     </div>
 
     <!-- Operation Bar -->
-    <div class="glass rounded-2xl p-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 shadow-sm border border-[var(--border-color)]">
+    <div class="glass rounded-2xl p-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 border border-[var(--border-color)]">
       <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div class="flex items-center gap-3">
           <label for="fetch-days" class="text-sm font-medium text-[var(--text-primary)] whitespace-nowrap">抓取范围</label>
@@ -117,16 +117,16 @@ onBeforeUnmount(() => window.clearInterval(timer))
       <div v-if="task?.message" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--surface-color)] border border-[var(--border-color)] shadow-inner text-sm max-w-sm truncate" :class="{ 'animate-pulse text-blue-500': task.running }">
         <span class="relative flex h-2 w-2 flex-shrink-0">
           <span v-if="task.running" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-2 w-2" :class="task.running ? 'bg-blue-500' : 'bg-green-500'"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2" :class="task.running ? 'bg-blue-500' : 'bg-emerald-500'"></span>
         </span>
         <span class="truncate font-medium">{{ task.message }}</span>
       </div>
     </div>
     
-    <p v-if="errorMessage" class="text-red-500 text-sm font-medium px-4 py-2 bg-red-50 dark:bg-red-500/10 rounded-lg border border-red-200 dark:border-red-500/20" role="alert">{{ errorMessage }}</p>
+    <p v-if="errorMessage" class="text-rose-500 text-sm font-medium px-4 py-2 bg-rose-50 dark:bg-rose-500/10 rounded-lg border border-rose-200 dark:border-rose-500/20" role="alert">{{ errorMessage }}</p>
 
-    <div v-if="loadError" class="flex items-center gap-4 p-6 rounded-2xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400" role="alert">
-      <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-red-100 dark:bg-red-500/20 shrink-0">
+    <div v-if="loadError" class="flex items-center gap-4 p-6 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400" role="alert">
+      <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-rose-100 dark:bg-rose-500/20 shrink-0">
         <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
       </div>
       <div class="flex-1">
@@ -138,7 +138,7 @@ onBeforeUnmount(() => window.clearInterval(timer))
 
     <!-- Report Layout -->
     <div v-else class="flex-1 min-h-0 flex flex-col md:flex-row gap-6" v-loading="loading">
-      <aside class="w-full md:w-72 flex-shrink-0 glass rounded-2xl border border-[var(--border-color)] overflow-hidden flex flex-col shadow-sm">
+      <aside class="w-full md:w-72 flex-shrink-0 glass rounded-2xl border border-[var(--border-color)] overflow-hidden flex flex-col">
         <div class="p-4 border-b border-[var(--border-color)] bg-[var(--surface-color)]/50">
           <h3 class="font-bold text-sm tracking-wider text-[var(--text-secondary)] uppercase">Report List</h3>
         </div>
@@ -146,12 +146,16 @@ onBeforeUnmount(() => window.clearInterval(timer))
           <button
             v-for="report in reports"
             :key="`${report.year}-${report.month}`"
-            class="w-full flex flex-col items-start gap-1 p-3 rounded-xl transition-all duration-200 border text-left"
-            :class="selected?.filename === report.filename ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/5' : 'bg-transparent border-transparent hover:bg-[var(--surface-color)] hover:border-[var(--border-color)] text-[var(--text-primary)]'"
+            class="relative w-full flex flex-col items-start gap-1 p-3 pl-4 rounded-xl transition-all duration-200 border text-left overflow-hidden"
+            :class="selected?.filename === report.filename ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400' : 'bg-transparent border-transparent hover:bg-[var(--surface-color)] hover:border-[var(--border-color)] text-[var(--text-primary)]'"
             @click="openReport(report)"
           >
+            <span
+              class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 rounded-r-full bg-gradient-to-b from-blue-500 to-violet-500 transition-opacity duration-200"
+              :class="selected?.filename === report.filename ? 'opacity-100' : 'opacity-0'"
+            ></span>
             <strong class="text-sm font-semibold">{{ report.year }}年{{ report.month }}月</strong>
-            <small class="text-xs opacity-80">{{ report.entries }} 条记录 · {{ report.hours.toFixed(1) }}h</small>
+            <small class="text-xs opacity-80 tabular-nums">{{ report.entries }} 条记录 · {{ report.hours.toFixed(1) }}h</small>
           </button>
           
           <div v-if="reports.length === 0" class="py-10 px-4 text-center">
@@ -164,7 +168,7 @@ onBeforeUnmount(() => window.clearInterval(timer))
         </div>
       </aside>
       
-      <article class="flex-1 min-h-0 glass rounded-2xl border border-[var(--border-color)] flex flex-col shadow-sm overflow-hidden">
+      <article class="flex-1 min-h-0 glass rounded-2xl border border-[var(--border-color)] flex flex-col overflow-hidden">
         <header v-if="selected" class="h-14 px-6 border-b border-[var(--border-color)] bg-[var(--surface-color)]/50 flex items-center justify-between flex-shrink-0">
           <h2 class="font-bold text-lg text-[var(--text-primary)]">{{ selected.filename.replace('.md', '') }}</h2>
           <el-switch v-model="rawView" active-text="Markdown" class="ml-4" />
@@ -176,7 +180,7 @@ onBeforeUnmount(() => window.clearInterval(timer))
             <p class="text-lg font-medium">从左侧选择一份报告以查看</p>
           </div>
           <pre v-else-if="rawView" class="font-mono text-sm text-[var(--text-primary)] whitespace-pre-wrap leading-relaxed">{{ reportMarkdown }}</pre>
-          <div v-else class="prose prose-sm sm:prose-base dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-blue-500 hover:prose-a:text-blue-600" v-html="reportHtml" />
+          <div v-else class="report-body" v-html="reportHtml" />
         </div>
       </article>
     </div>

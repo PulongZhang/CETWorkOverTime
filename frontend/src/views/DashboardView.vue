@@ -29,6 +29,34 @@ const overview = computed(() => {
   }
 })
 
+// Tailwind 需要扫描到完整类名，因此这里写成字面量而非拼接
+const stats = computed(() => [
+  {
+    label: '累计投入',
+    value: overview.value.totalHours.toFixed(1),
+    unit: 'h',
+    orb: 'bg-blue-500/10',
+    icon: 'bg-blue-50 dark:bg-blue-500/10 text-blue-500',
+    path: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+  },
+  {
+    label: '累计目标',
+    value: overview.value.totalTarget.toFixed(0),
+    unit: 'h',
+    orb: 'bg-violet-500/10',
+    icon: 'bg-violet-50 dark:bg-violet-500/10 text-violet-500',
+    path: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+  },
+  {
+    label: '日志记录',
+    value: String(overview.value.totalEntries),
+    unit: '条',
+    orb: 'bg-emerald-500/10',
+    icon: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500',
+    path: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  },
+])
+
 function progress(month: MonthSummary) {
   return Math.min((month.hours / month.target) * 100, 100)
 }
@@ -63,7 +91,7 @@ onMounted(loadDashboard)
   <section class="space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
       <div>
-        <span class="text-blue-500 font-bold text-xs tracking-widest uppercase">Diligence Overview</span>
+        <span class="eyebrow">Diligence Overview</span>
         <h1 class="text-3xl font-bold mt-1 mb-2 text-[var(--text-primary)]">勤奋时间仪表板</h1>
         <p class="text-[var(--text-secondary)] text-sm max-w-2xl">按年度和月份查看工作日志中的投入时间、目标与完成情况。</p>
       </div>
@@ -73,8 +101,8 @@ onMounted(loadDashboard)
     <div v-if="loading" class="grid grid-cols-1 md:grid-cols-3 gap-4" aria-label="正在加载统计数据">
       <div v-for="item in 3" :key="item" class="h-28 rounded-2xl bg-gradient-to-r from-[var(--border-color)] to-[var(--surface-color)] animate-pulse" />
     </div>
-    <div v-else-if="errorMessage" class="flex flex-col sm:flex-row items-center gap-4 p-6 rounded-2xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400" role="alert">
-      <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-red-100 dark:bg-red-500/20 shrink-0">
+    <div v-else-if="errorMessage" class="flex flex-col sm:flex-row items-center gap-4 p-6 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400" role="alert">
+      <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-rose-100 dark:bg-rose-500/20 shrink-0">
         <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
@@ -98,41 +126,21 @@ onMounted(loadDashboard)
     </div>
 
     <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-5">
-      <div class="relative overflow-hidden glass rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow group">
-        <div class="absolute right-0 top-0 w-24 h-24 bg-blue-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110 pointer-events-none"></div>
+      <div
+        v-for="stat in stats"
+        :key="stat.label"
+        class="relative overflow-hidden glass glass-hover rounded-2xl p-6 group"
+      >
+        <div class="absolute right-0 top-0 w-24 h-24 rounded-bl-full -mr-4 -mt-4 transition-transform duration-500 group-hover:scale-110 pointer-events-none" :class="stat.orb"></div>
         <div class="flex items-center gap-4 relative z-10">
-          <div class="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-500 shadow-inner">
-            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center shadow-inner" :class="stat.icon">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="stat.path" /></svg>
           </div>
           <div>
-            <span class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">累计投入</span>
-            <div class="text-3xl font-bold mt-0.5 text-[var(--text-primary)]">{{ overview.totalHours.toFixed(1) }}<span class="text-sm font-medium text-[var(--text-secondary)] ml-1">h</span></div>
-          </div>
-        </div>
-      </div>
-      
-      <div class="relative overflow-hidden glass rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow group">
-        <div class="absolute right-0 top-0 w-24 h-24 bg-purple-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110 pointer-events-none"></div>
-        <div class="flex items-center gap-4 relative z-10">
-          <div class="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-500/10 flex items-center justify-center text-purple-500 shadow-inner">
-            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          </div>
-          <div>
-            <span class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">累计目标</span>
-            <div class="text-3xl font-bold mt-0.5 text-[var(--text-primary)]">{{ overview.totalTarget.toFixed(0) }}<span class="text-sm font-medium text-[var(--text-secondary)] ml-1">h</span></div>
-          </div>
-        </div>
-      </div>
-      
-      <div class="relative overflow-hidden glass rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow group">
-        <div class="absolute right-0 top-0 w-24 h-24 bg-green-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110 pointer-events-none"></div>
-        <div class="flex items-center gap-4 relative z-10">
-          <div class="w-12 h-12 rounded-xl bg-green-50 dark:bg-green-500/10 flex items-center justify-center text-green-500 shadow-inner">
-            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-          </div>
-          <div>
-            <span class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">日志记录</span>
-            <div class="text-3xl font-bold mt-0.5 text-[var(--text-primary)]">{{ overview.totalEntries }}<span class="text-sm font-medium text-[var(--text-secondary)] ml-1">条</span></div>
+            <span class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">{{ stat.label }}</span>
+            <div class="text-3xl font-bold mt-0.5 text-[var(--text-primary)] tabular-nums">
+              {{ stat.value }}<span class="text-sm font-medium text-[var(--text-secondary)] ml-1">{{ stat.unit }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -141,15 +149,15 @@ onMounted(loadDashboard)
     <article v-for="[year, summary] in years" :key="year" class="glass rounded-2xl p-6">
       <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border-color)]">
         <div>
-          <span class="text-blue-500 font-bold text-xs tracking-widest uppercase">Year</span>
-          <h2 class="text-3xl font-bold mt-1 text-[var(--text-primary)]">{{ year }}</h2>
+          <span class="eyebrow">Year</span>
+          <h2 class="text-3xl font-bold mt-1 text-[var(--text-primary)] tabular-nums">{{ year }}</h2>
         </div>
-        <div class="flex gap-6 text-right">
+        <div class="flex gap-6 text-right tabular-nums">
           <div><span class="block text-xs text-[var(--text-secondary)]">累计</span><strong class="text-lg font-bold text-[var(--text-primary)]">{{ summary.total_hours.toFixed(1) }}h</strong></div>
           <div><span class="block text-xs text-[var(--text-secondary)]">目标</span><strong class="text-lg font-bold text-[var(--text-primary)]">{{ summary.total_target.toFixed(0) }}h</strong></div>
           <div>
             <span class="block text-xs text-[var(--text-secondary)]">差值</span>
-            <strong class="text-lg font-bold" :class="summary.total_delta >= 0 ? 'text-green-500' : 'text-red-500'">
+            <strong class="text-lg font-bold" :class="summary.total_delta >= 0 ? 'text-emerald-500' : 'text-rose-500'">
               {{ summary.total_delta > 0 ? '+' : '' }}{{ summary.total_delta.toFixed(1) }}h
             </strong>
           </div>
@@ -160,34 +168,34 @@ onMounted(loadDashboard)
         <button
           v-for="month in summary.months"
           :key="month.month"
-          class="relative flex flex-col gap-3 p-5 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-color)]/60 backdrop-blur-sm hover:bg-[var(--surface-color)] shadow-sm hover:shadow-xl hover:shadow-blue-500/10 hover:-translate-y-1.5 transition-all duration-300 text-left group overflow-hidden"
+          class="relative flex flex-col gap-3 p-5 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-color)]/60 backdrop-blur-sm hover:bg-[var(--surface-color)] hover:border-blue-500/40 hover:shadow-[var(--shadow-lift)] hover:-translate-y-1.5 transition-all duration-300 text-left group overflow-hidden"
           type="button"
           @click="openMonth(Number(year), month.month)"
         >
           <!-- 装饰性渐变背景 -->
-          <div class="absolute -right-8 -top-8 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl group-hover:bg-blue-500/10 transition-colors pointer-events-none"></div>
-          
+          <div class="absolute -right-8 -top-8 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl group-hover:bg-blue-500/15 transition-colors pointer-events-none"></div>
+
           <div class="flex justify-between items-center w-full text-sm z-10">
             <span class="font-semibold text-[var(--text-primary)] text-base">{{ month.month }}月</span>
-            <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-[var(--border-color)]/50 text-[var(--text-secondary)]">{{ month.entries }} 记录</span>
+            <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-[var(--border-color)]/60 text-[var(--text-secondary)] tabular-nums">{{ month.entries }} 记录</span>
           </div>
-          <div class="text-3xl font-extrabold tracking-tight text-[var(--text-primary)] group-hover:text-blue-500 transition-colors z-10 mt-1">
+          <div class="text-3xl font-extrabold tracking-tight text-[var(--text-primary)] group-hover:text-blue-500 transition-colors z-10 mt-1 tabular-nums">
             {{ month.hours.toFixed(1) }}<span class="text-sm font-medium text-[var(--text-secondary)] ml-1">/ {{ month.target }}h</span>
           </div>
-          
+
           <div class="flex items-center gap-1.5 z-10 mt-1">
-            <span class="flex items-center justify-center w-4 h-4 rounded-full" :class="month.delta >= 0 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'">
+            <span class="flex items-center justify-center w-4 h-4 rounded-full" :class="month.delta >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'">
               <svg v-if="month.delta >= 0" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
               <svg v-else class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
             </span>
-            <span class="text-xs font-bold" :class="month.delta >= 0 ? 'text-green-500' : 'text-red-500'">
-              {{ month.delta >= 0 ? '达标' : '未达标' }} <span class="opacity-75 font-medium ml-0.5">{{ month.delta > 0 ? '+' : '' }}{{ month.delta.toFixed(1) }}h</span>
+            <span class="text-xs font-bold" :class="month.delta >= 0 ? 'text-emerald-500' : 'text-rose-500'">
+              {{ month.delta >= 0 ? '达标' : '未达标' }} <span class="opacity-75 font-medium ml-0.5 tabular-nums">{{ month.delta > 0 ? '+' : '' }}{{ month.delta.toFixed(1) }}h</span>
             </span>
           </div>
-          
+
           <div class="w-full h-2 bg-[var(--border-color)]/60 rounded-full overflow-hidden mt-2 z-10" role="progressbar" :aria-valuenow="Math.round(progress(month))" aria-valuemin="0" aria-valuemax="100">
-            <div class="h-full rounded-full transition-all duration-1000 ease-out" 
-                 :class="progress(month) >= 100 ? 'bg-green-500' : 'bg-blue-500'" 
+            <div class="h-full rounded-full transition-all duration-1000 ease-out"
+                 :class="progress(month) >= 100 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : 'bg-gradient-to-r from-blue-500 to-violet-500'"
                  :style="{ width: `${progress(month)}%` }" />
           </div>
         </button>
@@ -196,12 +204,19 @@ onMounted(loadDashboard)
 
     <el-drawer v-model="detailVisible" :title="selectedTitle" size="min(720px, 92vw)">
       <div v-loading="detailLoading" class="flex flex-col gap-2">
-        <button v-for="day in days" :key="day.date" class="grid grid-cols-[100px_70px_120px_1fr] items-center gap-4 p-3 rounded-xl border border-[var(--border-color)] bg-[var(--surface-color)] hover:bg-[var(--border-color)] transition-colors text-left" @click="selectedDay = day">
-          <span class="text-sm text-[var(--text-primary)]">{{ day.date }}</span>
-          <strong class="text-green-500">{{ day.hours.toFixed(2) }}h</strong>
-          <span class="text-xs text-[var(--text-secondary)] truncate">{{ day.start || '--:--' }} – {{ day.end || '--:--' }}</span>
-          <span class="text-xs text-[var(--text-secondary)] truncate">{{ day.subject || '无主题' }}</span>
+        <button
+          v-for="day in days"
+          :key="day.date"
+          class="grid grid-cols-[auto_1fr] sm:grid-cols-[96px_84px_128px_1fr] items-center gap-x-4 gap-y-1 p-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-color)] hover:border-blue-500/40 hover:bg-blue-500/5 transition-colors text-left"
+          @click="selectedDay = day"
+        >
+          <span class="text-sm font-medium text-[var(--text-primary)] tabular-nums">{{ day.date }}</span>
+          <strong class="text-emerald-500 tabular-nums">{{ day.hours.toFixed(2) }}h</strong>
+          <span class="text-xs text-[var(--text-secondary)] tabular-nums truncate">{{ day.start || '--:--' }} – {{ day.end || '--:--' }}</span>
+          <span class="col-span-2 sm:col-span-1 text-xs text-[var(--text-secondary)] truncate">{{ day.subject || '无主题' }}</span>
         </button>
+
+        <p v-if="!detailLoading && days.length === 0" class="py-10 text-center text-sm text-[var(--text-secondary)]">该月暂无工作日志记录。</p>
       </div>
     </el-drawer>
 
